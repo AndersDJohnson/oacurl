@@ -4,5 +4,9 @@ syntax: glob
 *.rej
 .DS_Store
 
+.classpath
+.project
+.settings
+
 syntax: regexp
 ^target$
