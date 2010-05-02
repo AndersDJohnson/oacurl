@@ -27,7 +27,7 @@ import net.oauth.OAuthConsumer;
  */
 public class AccessorDao {
   private static final String ACCESS_TOKEN_PROPERTY = "accessToken";
-  private static final String ACCESS_SECRET_PROPERTY = "accessSecret";
+  private static final String ACCESS_TOKEN_SECRET_PROPERTY = "accessTokenSecret";
 
   public OAuthAccessor newAccessor(OAuthConsumer consumer) {
     return new OAuthAccessor(consumer);
@@ -37,13 +37,13 @@ public class AccessorDao {
     OAuthAccessor accessor = newAccessor(consumer);
 
     accessor.accessToken = properties.getProperty(ACCESS_TOKEN_PROPERTY);
-    accessor.tokenSecret = properties.getProperty(ACCESS_SECRET_PROPERTY);
+    accessor.tokenSecret = properties.getProperty(ACCESS_TOKEN_SECRET_PROPERTY);
 
     return accessor;
   }
 
   public void saveAccessor(OAuthAccessor accessor, Properties properties) {
     properties.setProperty(ACCESS_TOKEN_PROPERTY, accessor.accessToken);
-    properties.setProperty(ACCESS_SECRET_PROPERTY, accessor.tokenSecret);
+    properties.setProperty(ACCESS_TOKEN_SECRET_PROPERTY, accessor.tokenSecret);
   }
 }
