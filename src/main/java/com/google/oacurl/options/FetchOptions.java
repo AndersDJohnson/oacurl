@@ -54,8 +54,8 @@ public class FetchOptions extends CommonOptions {
     options.addOption(OptionBuilder.withArgName("method")
         .withLongOpt("header")
         .hasArgs()
-        .withDescription("Custom header to pass to server").create("X"));
-    options.addOption(null, "content-type", true,
+        .withDescription("Custom header to pass to server").create("H"));
+    options.addOption("t", "content-type", true,
         "Content-Type header (or ATOM, XML, JSON, CSV, TEXT)");
     options.addOption("i", "include", false, "Include protocol headers in the output");
   }
