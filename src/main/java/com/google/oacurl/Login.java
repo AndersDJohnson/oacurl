@@ -116,7 +116,7 @@ public class Login {
       }
 
       if (accessor.consumer.consumerKey.equals("anonymous")) {
-        requestTokenParams.add(new OAuth.Parameter("xoauth_displayname", "OCurl"));
+        requestTokenParams.add(new OAuth.Parameter("xoauth_displayname", "OACurl"));
       }
 
       logger.log(Level.INFO, "Fetching request token with parameters: " + requestTokenParams);
