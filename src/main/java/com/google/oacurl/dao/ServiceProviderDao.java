@@ -29,24 +29,14 @@ public class ServiceProviderDao {
   private static final String USER_AUTHORIZATION_URL_PROPERTY = "userAuthorizationUrl";
   private static final String ACCESS_TOKEN_URL_PROPERTY = "accessTokenUrl";
 
-  private static final String DEFAULT_REQUEST_TOKEN_URL =
-      "https://www.google.com/accounts/OAuthGetRequestToken";
-  private static final String DEFAULT_USER_AUTHORIZATION_URL =
-      "https://www.google.com/accounts/OAuthAuthorizeToken";
-  private static final String DEFAULT_ACCESS_TOKEN_URL =
-      "https://www.google.com/accounts/OAuthGetAccessToken";
-
   public OAuthServiceProvider nullServiceProvider() {
     return new OAuthServiceProvider(null, null, null);
   }
 
   public OAuthServiceProvider loadServiceProvider(Properties properties) throws IOException {
-    String requestTokenUrl = properties.getProperty(REQUEST_TOKEN_URL_PROPERTY,
-        DEFAULT_REQUEST_TOKEN_URL);
-    String userAuthorizationUrl = properties.getProperty(USER_AUTHORIZATION_URL_PROPERTY,
-        DEFAULT_USER_AUTHORIZATION_URL);
-    String accessTokenUrl = properties.getProperty(ACCESS_TOKEN_URL_PROPERTY,
-        DEFAULT_ACCESS_TOKEN_URL);
+    String requestTokenUrl = properties.getProperty(REQUEST_TOKEN_URL_PROPERTY);
+    String userAuthorizationUrl = properties.getProperty(USER_AUTHORIZATION_URL_PROPERTY);
+    String accessTokenUrl = properties.getProperty(ACCESS_TOKEN_URL_PROPERTY);
 
     return new OAuthServiceProvider(requestTokenUrl, userAuthorizationUrl, accessTokenUrl);
   }

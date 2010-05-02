@@ -45,7 +45,8 @@ public class LoginOptions extends CommonOptions {
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
-    options.addOption("p", "service-provider", true, "properties file with service provider URLs");
+    options.addOption("p", "service-provider", true,
+        "properties file with service provider URLs (or GOOGLE, YAHOO, TWITTER, etc.)");
     options.addOption("c", "consumer", true, "properties file with consumer key and secret");
     options.addOption(OptionBuilder.withArgName("scope list")
         .withLongOpt("scope")

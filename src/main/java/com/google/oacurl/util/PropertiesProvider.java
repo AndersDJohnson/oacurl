@@ -16,8 +16,10 @@ package com.google.oacurl.util;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 /**
@@ -28,28 +30,56 @@ import java.util.Properties;
  */
 public class PropertiesProvider {
   private final File file;
+  private final InputStream inputStream;
   private Properties properties;
 
   /**
    * @param fileName file name to load, may be null for empty
    *     {@link Properties}.
    */
-  public PropertiesProvider(String fileName) {
-    this((fileName == null) ? null : new File(fileName));
+  public PropertiesProvider(String fileName) throws FileNotFoundException {
+    this(fileName, null, null);
   }
 
-  public PropertiesProvider(File file) {
-    this.file = file;
+  /**
+   * Constructor that, if the file does not exist, searches for it as a
+   * resource (with a ".properties" file extension).
+   *
+   * @param fileName File name to load, may be null for empty
+   *     {@link Properties}.
+   * @param resourceClass If the file is not found, a class to start the
+   *     resource search on.
+   * @param resourcePrefix A prefix to add to the file name.
+   */
+  public PropertiesProvider(String fileName, Class<?> resourceClass, String resourcePrefix)
+      throws FileNotFoundException {
+    if (fileName == null) {
+      this.file = null;
+      this.inputStream = null;
+    } else {
+      File namedFile = new File(fileName);
+      if (namedFile.exists()) {
+        this.file = namedFile;
+        this.inputStream = new FileInputStream(this.file);
+      } else {
+        this.file = null;
+
+        if (resourceClass != null && resourcePrefix != null) {
+          this.inputStream = resourceClass.getResourceAsStream(resourcePrefix + fileName + ".properties");
+        } else {
+          this.inputStream = null;
+        }
+      }
+    }
   }
 
   public Properties get() throws IOException {
     if (properties == null) {
       properties = new Properties();
 
-      if (file != null) {
-        FileInputStream in = new FileInputStream(file);
-        properties.load(in);
-        in.close();
+      if (inputStream != null) {
+        properties.load(inputStream);
+        inputStream.close();
       }
     }
 

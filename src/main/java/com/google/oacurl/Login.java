@@ -76,8 +76,17 @@ public class Login {
 	  ConsumerDao consumerDao = new ConsumerDao(options);
 	  AccessorDao accessorDao = new AccessorDao();
 
+    String serviceProviderFileName = options.getServiceProviderFileName();
+    if (serviceProviderFileName == null) {
+      serviceProviderFileName = "GOOGLE";
+    }
+
+    // We have a wee library of service provider properties files bundled into
+    // the resources, so we set up the PropertiesProvider to search for them
+    // if the file cannot be found.
     OAuthServiceProvider serviceProvider = serviceProviderDao.loadServiceProvider(
-        new PropertiesProvider(options.getServiceProviderFileName()).get());
+        new PropertiesProvider(serviceProviderFileName,
+            ServiceProviderDao.class, "services/").get());
     OAuthConsumer consumer = consumerDao.loadConsumer(
         new PropertiesProvider(options.getConsumerFileName()).get(), serviceProvider);
     OAuthAccessor accessor = accessorDao.newAccessor(consumer);
