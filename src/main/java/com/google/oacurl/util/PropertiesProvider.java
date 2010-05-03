@@ -62,11 +62,13 @@ public class PropertiesProvider {
         this.file = namedFile;
         this.inputStream = new FileInputStream(this.file);
       } else {
-        this.file = null;
-
         if (resourceClass != null && resourcePrefix != null) {
+          this.file = null;
           this.inputStream = resourceClass.getResourceAsStream(resourcePrefix + fileName + ".properties");
         } else {
+          // If no resource search was provided for, we probably want to
+          // create a new file when saving.
+          this.file = namedFile;
           this.inputStream = null;
         }
       }
