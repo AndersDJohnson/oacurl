@@ -78,7 +78,7 @@ public class Login {
 
     String serviceProviderFileName = options.getServiceProviderFileName();
     if (serviceProviderFileName == null) {
-      serviceProviderFileName = "GOOGLE";
+      serviceProviderFileName = options.isBuzz() ? "BUZZ" : "GOOGLE";
     }
 
     // We have a wee library of service provider properties files bundled into
@@ -125,8 +125,16 @@ public class Login {
       logger.log(Level.INFO, "Request token received: " + requestTokenResponse.getParameters());
       logger.log(Level.FINE, requestTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
 
-      String authorizationUrl = OAuth.addParameters(
-          accessor.consumer.serviceProvider.userAuthorizationURL,
+      String authorizationUrl = accessor.consumer.serviceProvider.userAuthorizationURL;
+
+      if (options.isBuzz()) {
+        authorizationUrl = OAuth.addParameters(authorizationUrl,
+            "scope", options.getScope(),
+            "domain", accessor.consumer.consumerKey);
+      }
+
+       authorizationUrl = OAuth.addParameters(
+          authorizationUrl,
           OAuth.OAUTH_TOKEN, accessor.requestToken);
 
       if (options.isNoBrowser()) {
