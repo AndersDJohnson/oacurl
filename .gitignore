@@ -1,4 +1,3 @@
-syntax: glob
 *~
 *.orig
 *.rej
@@ -8,7 +7,6 @@ syntax: glob
 .project
 .settings
 
-.git
+.hg
 
-syntax: regexp
-^target$
+/target
