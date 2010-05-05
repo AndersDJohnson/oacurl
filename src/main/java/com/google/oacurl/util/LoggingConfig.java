@@ -31,4 +31,11 @@ public class LoggingConfig {
           LoggingConfig.class.getResourceAsStream("quiet-logging.properties"));
     }
   }
+
+  public static void enableWireLog() {
+    System.setProperty("org.apache.commons.logging.Log",
+        "org.apache.commons.logging.impl.SimpleLog");
+    System.setProperty("org.apache.commons.logging.simplelog.showShortLogname", "false");
+    System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.wire", "DEBUG");
+  }
 }

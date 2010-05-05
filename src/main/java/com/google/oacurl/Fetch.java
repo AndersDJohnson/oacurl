@@ -16,7 +16,6 @@ package com.google.oacurl;
 
 import java.io.FileNotFoundException;
 import java.util.Properties;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.oauth.OAuth;
@@ -52,8 +51,6 @@ import com.google.oacurl.util.PropertiesProvider;
  * @author phopkins@google.com
  */
 public class Fetch {
-  private static Logger logger = Logger.getLogger(Fetch.class.getName());
-
   public static void main(String[] args) throws Exception {
     FetchOptions options = new FetchOptions();
     CommandLine line = options.parse(args);
@@ -70,6 +67,9 @@ public class Fetch {
     }
 
     LoggingConfig.init(options.isVerbose());
+    if (options.isVerbose()) {
+      LoggingConfig.enableWireLog();
+    }
 
     String url = args[0];
 
@@ -110,8 +110,6 @@ public class Fetch {
       }
 
       request.getHeaders().addAll(options.getHeaders());
-
-      logger.log(Level.INFO, "Fetching request with parameters: " + request.getParameters());
 
       OAuthResponseMessage response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
 
