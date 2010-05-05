@@ -40,11 +40,28 @@ public class LoggingConfig {
 
   public static void enableWireLog() {
     // For clarity, override the formatter so that it doesn't print the
-    // date and method name for each line.
+    // date and method name for each line, and then munge the output a little
+    // bit to make it nicer and more curl-like.
     Formatter wireFormatter = new Formatter() {
       @Override
       public String format(LogRecord record) {
-        return record.getMessage() + System.getProperty("line.separator");
+        String message = record.getMessage();
+        String trimmedMessage = message.substring(">> \"".length(), message.length() - 1);
+        if (trimmedMessage.matches("[0-9a-f]+\\[EOL\\]")) {
+          return "";
+        }
+
+        trimmedMessage = trimmedMessage.replace("[EOL]", "");
+        if (trimmedMessage.isEmpty()) {
+          return "";
+        }
+
+        StringBuilder out = new StringBuilder();
+        out.append(message.charAt(0));
+        out.append(" ");
+        out.append(trimmedMessage);
+        out.append(System.getProperty("line.separator"));
+        return out.toString();
       }
     };
 
