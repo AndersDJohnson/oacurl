@@ -30,8 +30,8 @@ import org.apache.commons.cli.ParseException;
 public class LoginOptions extends CommonOptions {
   private static final Map<String, String> SCOPE_MAP = new HashMap<String, String>();
   static {
-    SCOPE_MAP.put("BUZZ", "tag:google.com,2010:auth/buzz#secure");
-    SCOPE_MAP.put("BUZZ_READONLY", "tag:google.com,2010:auth/buzz#readonly&secure");
+    SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
+    SCOPE_MAP.put("BUZZ_READONLY", "https://www.googleapis.com/auth/buzz.readonly");
   }
 
   private String consumerFileName;
