@@ -15,7 +15,11 @@
 package com.google.oacurl.util;
 
 import java.io.IOException;
-import java.util.logging.LogManager;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 /**
  * @author phopkins
@@ -23,19 +27,34 @@ import java.util.logging.LogManager;
  */
 public class LoggingConfig {
   public static void init(boolean verbose) throws SecurityException, IOException {
+    System.setProperty("org.apache.commons.logging.Log",
+        "org.apache.commons.logging.impl.Jdk14Logger");
+
+    Logger defaultLogger = Logger.getLogger("");
     if (verbose) {
-      LogManager.getLogManager().readConfiguration(
-          LoggingConfig.class.getResourceAsStream("verbose-logging.properties"));
+      defaultLogger.setLevel(Level.INFO);
     } else {
-      LogManager.getLogManager().readConfiguration(
-          LoggingConfig.class.getResourceAsStream("quiet-logging.properties"));
+      defaultLogger.setLevel(Level.SEVERE);
     }
   }
 
   public static void enableWireLog() {
-    System.setProperty("org.apache.commons.logging.Log",
-        "org.apache.commons.logging.impl.SimpleLog");
-    System.setProperty("org.apache.commons.logging.simplelog.showShortLogname", "false");
-    System.setProperty("org.apache.commons.logging.simplelog.log.org.apache.http.wire", "DEBUG");
+    // For clarity, override the formatter so that it doesn't print the
+    // date and method name for each line.
+    Formatter wireFormatter = new Formatter() {
+      @Override
+      public String format(LogRecord record) {
+        return record.getMessage() + System.getProperty("line.separator");
+      }
+    };
+
+    ConsoleHandler wireHandler = new ConsoleHandler();
+    wireHandler.setLevel(Level.FINE);
+    wireHandler.setFormatter(wireFormatter);
+
+    Logger wireLogger = Logger.getLogger("org.apache.http.wire");
+    wireLogger.setLevel(Level.FINE);
+    wireLogger.setUseParentHandlers(false);
+    wireLogger.addHandler(wireHandler);
   }
 }

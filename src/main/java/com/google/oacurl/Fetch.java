@@ -51,6 +51,10 @@ import com.google.oacurl.util.PropertiesProvider;
  * @author phopkins@google.com
  */
 public class Fetch {
+
+  @SuppressWarnings("unused")
+  private static Logger logger = Logger.getLogger(Login.class.getName());
+
   public static void main(String[] args) throws Exception {
     FetchOptions options = new FetchOptions();
     CommandLine line = options.parse(args);
