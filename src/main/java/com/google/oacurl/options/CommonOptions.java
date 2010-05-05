@@ -29,24 +29,21 @@ public class CommonOptions {
   private String loginFileName;
   private boolean help;
   private boolean verbose;
-  private boolean buzz;
 
   public CommonOptions() {
     options = new Options();
-    options.addOption("f", "file", true, "properties file with access token and secret");
+    options.addOption(null, "access-file", true, "properties file with access token and secret");
     options.addOption("h", "help", false, "This help text");
     options.addOption("v", "verbose", false, "Make the operation more talkative");
-    options.addOption(null, "buzz", false, "Use defaults for Buzz");
   }
 
   public CommandLine parse(String[] args) throws ParseException {
     CommandLine line = new GnuParser().parse(options, args);
 
-    loginFileName = line.getOptionValue("file",
+    loginFileName = line.getOptionValue("access-file",
         new File(System.getProperty("user.home"), DEFAULT_LOGIN_FILE_NAME).getAbsolutePath());
     help = line.hasOption("help");
     verbose = line.hasOption("verbose");
-    buzz = line.hasOption("buzz");
 
     return line;
   }
@@ -61,10 +58,6 @@ public class CommonOptions {
 
   public boolean isVerbose() {
     return verbose;
-  }
-
-  public boolean isBuzz() {
-    return buzz;
   }
 
   public Options getOptions() {

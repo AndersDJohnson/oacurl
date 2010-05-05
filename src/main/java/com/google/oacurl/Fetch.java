@@ -14,8 +14,12 @@
 
 package com.google.oacurl;
 
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.util.List;
 import java.util.Properties;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import net.oauth.OAuth;
@@ -39,6 +43,7 @@ import com.google.oacurl.dao.ServiceProviderDao;
 import com.google.oacurl.options.FetchOptions;
 import com.google.oacurl.options.FetchOptions.Method;
 import com.google.oacurl.util.LoggingConfig;
+import com.google.oacurl.util.MultipartRelatedInputStream;
 import com.google.oacurl.util.OAuthUtil;
 import com.google.oacurl.util.PropertiesProvider;
 
@@ -99,12 +104,22 @@ public class Fetch {
     try {
       OAuthMessage request;
 
+      List<Entry<String, String>> related = options.getRelated();
+
       Method method = options.getMethod();
-      if (method == Method.POST || method == Method.PUT){
+      if (method == Method.POST || method == Method.PUT) {
+        InputStream bodyStream;
+        if (related != null) {
+          bodyStream = new MultipartRelatedInputStream(related);
+        } else if (options.getFile() != null) {
+          bodyStream = new FileInputStream(options.getFile());
+        } else {
+          bodyStream = System.in;
+        }
         request = accessor.newRequestMessage(method.toString(),
             url,
             null,
-            System.in);
+            bodyStream);
         request.getHeaders().add(new OAuth.Parameter("Content-Type", options.getContentType()));
       } else {
         request = accessor.newRequestMessage(method.toString(),
@@ -116,6 +131,8 @@ public class Fetch {
       request.getHeaders().addAll(options.getHeaders());
 
       OAuthResponseMessage response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
+
+      System.err.flush();
 
       if (options.isInclude()) {
         System.out.print(response.getDump().get(HttpMessage.RESPONSE));

@@ -32,6 +32,7 @@ public class LoginOptions extends CommonOptions {
   static {
     SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
     SCOPE_MAP.put("BUZZ_READONLY", "https://www.googleapis.com/auth/buzz.readonly");
+    SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
   }
 
   private String consumerFileName;
@@ -42,9 +43,11 @@ public class LoginOptions extends CommonOptions {
   private String browser;
   private boolean nobrowser;
   private boolean noserver;
+  private boolean buzz;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
+    options.addOption(null, "buzz", false, "Use defaults for Buzz");
     options.addOption("p", "service-provider", true,
         "properties file with service provider URLs (or GOOGLE, YAHOO, TWITTER, etc.)");
     options.addOption("c", "consumer", true, "properties file with consumer key and secret");
@@ -72,6 +75,7 @@ public class LoginOptions extends CommonOptions {
 
     noserver = line.hasOption("noserver");
     nobrowser = line.hasOption("nobrowser");
+    buzz = line.hasOption("buzz");
 
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
@@ -124,5 +128,9 @@ public class LoginOptions extends CommonOptions {
 
   public boolean isNoServer() {
     return noserver;
+  }
+
+  public boolean isBuzz() {
+    return buzz;
   }
 }
