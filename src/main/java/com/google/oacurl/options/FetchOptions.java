@@ -53,7 +53,7 @@ public class FetchOptions extends CommonOptions {
     options.addOption("X", "request", true, "HTTP method: GET, POST, PUT, or DELETE");
     options.addOption(OptionBuilder.withArgName("method")
         .withLongOpt("header")
-        .hasArgs()
+        .hasArg()
         .withDescription("Custom header to pass to server").create("H"));
     options.addOption("t", "content-type", true,
         "Content-Type header (or ATOM, XML, JSON, CSV, TEXT)");
@@ -76,7 +76,7 @@ public class FetchOptions extends CommonOptions {
     String[] headerArray = line.getOptionValues("header");
     if (headerArray != null) {
       for (String header : headerArray) {
-        String[] headerBits = header.split(":", 1);
+        String[] headerBits = header.split(":", 2);
         headers.add(new OAuth.Parameter(headerBits[0].trim(), headerBits[1].trim()));
       }
     }
