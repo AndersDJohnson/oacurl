@@ -159,7 +159,7 @@ public class LoginCallbackServer {
       doc.println("<html>");
       doc.println("<head><title>OAuth Authentication Token Recieved</title></head>");
       doc.println("<body>");
-      doc.println("Closing...");
+      doc.println("Received verifier token. Closing...");
       doc.println("<script type='text/javascript'>");
       // We open "" in the same window to trigger JS ownership of it, which lets
       // us then close it via JS, at least in Chrome.
