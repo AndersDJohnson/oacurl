@@ -62,6 +62,14 @@
     </repository>
   </repositories>
 
+  <distributionManagement>
+    <repository>
+      <id>oacurl-local</id>
+      <name>Local OACurl Repository</name>
+      <url>file:local</url>
+    </repository>
+  </distributionManagement>
+
   <dependencies>
     <dependency>
       <groupId>net.oauth.core</groupId>
