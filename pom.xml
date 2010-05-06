@@ -3,7 +3,7 @@
   <groupId>com.google.oacurl</groupId>
   <artifactId>oacurl</artifactId>
   <name>OACurl</name>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>0.8.0</version>
   <description>OAuth-enabled HTTP tool written in Java</description>
   <url>http://code.google.com/p/oacurl/</url>
   <inceptionYear>2010</inceptionYear>
@@ -61,6 +61,14 @@
       <url>http://oauth.googlecode.com/svn/code/maven/</url>
     </repository>
   </repositories>
+
+  <distributionManagement>
+    <repository>
+      <id>oacurl-local</id>
+      <name>Local OACurl Repository</name>
+      <url>file:local</url>
+    </repository>
+  </distributionManagement>
 
   <dependencies>
     <dependency>
