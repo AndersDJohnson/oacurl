@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
@@ -138,7 +140,13 @@ public class Fetch {
         System.out.print(response.getDump().get(HttpMessage.RESPONSE));
       }
 
-      System.out.println(response.readBodyAsString());        
+      // Dump the bytes in the response's encoding.
+      InputStream bodyStream = response.getBodyAsStream();
+      byte[] buf = new byte[1024];
+      int count;
+      while ((count = bodyStream.read(buf)) > -1) {
+        System.out.write(buf, 0, count);
+      }
     } catch (OAuthProblemException e) {
       OAuthUtil.printOAuthProblemException(e);
     }
