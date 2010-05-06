@@ -56,25 +56,25 @@ public class Login {
 
   private static Logger logger = Logger.getLogger(Login.class.getName());
 
-	public static void main(String[] args) throws Exception {
-	  LoginOptions options = new LoginOptions();
-	  try {
-	    options.parse(args);
-	  } catch (ParseException e) {
-	    System.err.println(e.getMessage());
-	    System.exit(-1);
-	  }
+  public static void main(String[] args) throws Exception {
+    LoginOptions options = new LoginOptions();
+    try {
+      options.parse(args);
+    } catch (ParseException e) {
+      System.err.println(e.getMessage());
+      System.exit(-1);
+    }
 
-	  if (options.isHelp()) {
-	    new HelpFormatter().printHelp(null, options.getOptions());
-	    System.exit(0);
-	  }
+    if (options.isHelp()) {
+      new HelpFormatter().printHelp(null, options.getOptions());
+      System.exit(0);
+    }
 
     LoggingConfig.init(options.isVerbose());
 
-	  ServiceProviderDao serviceProviderDao = new ServiceProviderDao();
-	  ConsumerDao consumerDao = new ConsumerDao(options);
-	  AccessorDao accessorDao = new AccessorDao();
+    ServiceProviderDao serviceProviderDao = new ServiceProviderDao();
+    ConsumerDao consumerDao = new ConsumerDao(options);
+    AccessorDao accessorDao = new AccessorDao();
 
     String serviceProviderFileName = options.getServiceProviderFileName();
     if (serviceProviderFileName == null) {
@@ -133,7 +133,7 @@ public class Login {
             "domain", accessor.consumer.consumerKey);
       }
 
-       authorizationUrl = OAuth.addParameters(
+      authorizationUrl = OAuth.addParameters(
           authorizationUrl,
           OAuth.OAUTH_TOKEN, accessor.requestToken);
 
@@ -180,12 +180,12 @@ public class Login {
       new PropertiesProvider(options.getLoginFileName()).overwrite(loginProperties);
     } catch (OAuthProblemException e) {
       OAuthUtil.printOAuthProblemException(e);
-	  } finally {
-	    if (callbackServer != null) {
-	      callbackServer.stop();
-	    }
-	  }
-	}
+    } finally {
+      if (callbackServer != null) {
+        callbackServer.stop();
+      }
+    }
+  }
 
   private static void launchBrowser(LoginOptions options,
       String authorizationUrl) {
