@@ -66,7 +66,7 @@ public class Login {
     }
 
     if (options.isHelp()) {
-      new HelpFormatter().printHelp(null, options.getOptions());
+      new HelpFormatter().printHelp(" ", options.getOptions());
       System.exit(0);
     }
 
@@ -189,38 +189,43 @@ public class Login {
 
   private static void launchBrowser(LoginOptions options,
       String authorizationUrl) {
-    Desktop desktop = null;
-    if (Desktop.isDesktopSupported()) {
-      desktop = Desktop.getDesktop();
-    }
-
     logger.log(Level.INFO, "Redirecting to URL: " + authorizationUrl);
 
     boolean browsed = false;
-    if (desktop != null && desktop.isSupported(Action.BROWSE) && options.getBrowser() == null) {
-      try {
-        desktop.browse(URI.create(authorizationUrl));
-        browsed = true;
-      } catch (IOException e) {
-        // In some situations "BROWSE" appears supported but throws an
-        // exception.
-        logger.log(Level.WARNING, "Exception thrown when using Desktop#browse(String)", e);
+    if (options.getBrowser() == null) {
+      if (Desktop.isDesktopSupported()) {
+        Desktop desktop = Desktop.getDesktop();
+        if (desktop.isSupported(Action.BROWSE)) {
+          try {
+            desktop.browse(URI.create(authorizationUrl));
+            browsed = true;
+          } catch (IOException e) {
+            // In some situations "BROWSE" appears supported but throws an
+            // exception.
+            logger.log(Level.WARNING, "Error opening browser for Desktop#browse(String)",
+                options.isVerbose() ? e : null);
+          }
+        } else {
+          logger.log(Level.WARNING, "java.awt.Desktop BROWSE action not supported.");
+        }
+      } else {
+        logger.log(Level.WARNING, "java.awt.Desktop not supported. You should use Java 1.6.");
       }
     }
 
     if (!browsed) {
+      String browser = options.getBrowser();
+      if (browser == null) {
+        browser = "google-chrome";
+      }
+
       try {
-        String browser = options.getBrowser();
-        if (browser == null) {
-          browser = "google-chrome";
-        }
         Runtime.getRuntime().exec(new String[] { browser, authorizationUrl });
       } catch (IOException e) {
-        logger.log(Level.SEVERE, "Error running browser: " + options.getBrowser(), e);
-        System.err.flush();
-        // Just print the URL with no messaging so that this can be piped
-        // somewhere useful (or used with ``s).
-        System.out.println(authorizationUrl);
+        logger.log(Level.SEVERE, "Error running browser: " + browser + ". " +
+            "Specify a browser with --browser or use --nobrowser to print URL.",
+            options.isVerbose() ? e : null);
+        System.exit(-1);
       }
     }
   }
