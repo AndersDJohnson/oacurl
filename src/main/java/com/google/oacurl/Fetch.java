@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
@@ -92,8 +90,8 @@ public class Fetch {
     try {
       loginProperties = new PropertiesProvider(options.getLoginFileName()).get();
     } catch (FileNotFoundException e) {
-      System.err.println(".gocurl.properties file not found in homedir");
-      System.err.println("Make sure you've run ocurl-login first!");
+      System.err.println(".oacurl.properties file not found in homedir");
+      System.err.println("Make sure you've run oacurl-login first!");
       System.exit(-1);
     }
 
