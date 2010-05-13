@@ -44,6 +44,8 @@ public class LoginOptions extends CommonOptions {
   private boolean nobrowser;
   private boolean noserver;
   private boolean buzz;
+  private boolean demo;
+  private String iconUrl;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
@@ -61,6 +63,8 @@ public class LoginOptions extends CommonOptions {
     options.addOption(null, "noserver", false, "Don't start the server, get token from stdin");
     options.addOption(null, "consumer-key", true, "Consumer key (if file is not specified)");
     options.addOption(null, "consumer-secret", true, "Consumer key (if file is not specified)");
+    options.addOption(null, "icon-url", true, "URL to an app icon to show on Buzz page");
+    options.addOption(null, "demo", false, "Loads a demo web-app for the login flow");
   }
 
   @Override
@@ -72,10 +76,13 @@ public class LoginOptions extends CommonOptions {
     consumerKey = line.getOptionValue("consumer-key");
     consumerSecret = line.getOptionValue("consumer-secret");
     browser = line.getOptionValue("browser");
+    iconUrl = line.getOptionValue("icon-url",
+        "http://www.gstatic.com/codesite/ph/images/defaultlogo.png");
 
     noserver = line.hasOption("noserver");
     nobrowser = line.hasOption("nobrowser");
     buzz = line.hasOption("buzz");
+    demo = line.hasOption("demo");
 
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
@@ -132,5 +139,13 @@ public class LoginOptions extends CommonOptions {
 
   public boolean isBuzz() {
     return buzz;
+  }
+ 
+  public boolean isDemo() {
+    return demo;
+  }
+
+  public String getIconUrl() {
+    return iconUrl;
   }
 }

@@ -20,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -28,6 +29,7 @@ import java.util.logging.Logger;
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
+import net.oauth.OAuthException;
 import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
@@ -38,6 +40,7 @@ import net.oauth.http.HttpMessage;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.ParseException;
 
+import com.google.oacurl.LoginCallbackServer.TokenStatus;
 import com.google.oacurl.dao.AccessorDao;
 import com.google.oacurl.dao.ConsumerDao;
 import com.google.oacurl.dao.ServiceProviderDao;
@@ -95,6 +98,8 @@ public class Login {
 
     LoginCallbackServer callbackServer = null;
 
+    boolean launchedBrowser = false;
+
     try {
       String callbackUrl;
       if (options.isNoServer()) {
@@ -106,78 +111,72 @@ public class Login {
         callbackUrl = callbackServer.getCallbackUrl();
       }
 
-      List<OAuth.Parameter> requestTokenParams = OAuth.newList();
-      if (callbackUrl != null) {
-        requestTokenParams.add(new OAuth.Parameter(OAuth.OAUTH_CALLBACK, callbackUrl));
-      }
-
-      if (options.getScope() != null) {
-        requestTokenParams.add(new OAuth.Parameter("scope", options.getScope()));
-      }
-
-      if (accessor.consumer.consumerKey.equals("anonymous")) {
-        requestTokenParams.add(new OAuth.Parameter("xoauth_displayname", "OACurl"));
-      }
-
-      logger.log(Level.INFO, "Fetching request token with parameters: " + requestTokenParams);
-      OAuthMessage requestTokenResponse = client.getRequestTokenResponse(accessor, null,
-          requestTokenParams);
-      logger.log(Level.INFO, "Request token received: " + requestTokenResponse.getParameters());
-      logger.log(Level.FINE, requestTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
-
-      String authorizationUrl = accessor.consumer.serviceProvider.userAuthorizationURL;
-
-      if (options.isBuzz()) {
-        authorizationUrl = OAuth.addParameters(authorizationUrl,
-            "scope", options.getScope(),
-            "domain", accessor.consumer.consumerKey);
-      }
-
-      authorizationUrl = OAuth.addParameters(
-          authorizationUrl,
-          OAuth.OAUTH_TOKEN, accessor.requestToken);
-
-      if (options.isNoBrowser()) {
-        System.out.println(authorizationUrl);
-        System.out.flush();
-      } else {
-        launchBrowser(options, authorizationUrl);        
-      }
-
-      logger.log(Level.INFO, "Waiting for verification token...");
-      String verifier;
-      if (options.isNoServer()) {
-        System.out.print("Verification token: ");
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        verifier = "";
-        while (verifier.isEmpty()) {
-          String line = reader.readLine();
-          if (line == null) {
-            System.exit(-1);
+      do {
+        String authorizationUrl = getAuthorizationUrl(client, accessor, options,
+            callbackUrl);
+  
+        callbackServer.setAuthorizationUrl(authorizationUrl);
+  
+        if (!launchedBrowser) {
+          String url = options.isDemo() ? callbackServer.getDemoUrl() : authorizationUrl;
+    
+          if (options.isNoBrowser()) {
+            System.out.println(url);
+            System.out.flush();
+          } else {
+            launchBrowser(options, url);        
           }
-          verifier = line.trim();
+  
+          launchedBrowser = true;
         }
-      } else {
-        verifier = callbackServer.waitForVerifier(accessor, -1);
-        if (verifier == null) {
-          System.err.println("Wait for verifier interrupted");
-          System.exit(-1);
-        }        
-      }
-      logger.log(Level.INFO, "Verification token received: " + verifier);
+ 
+        accessor.accessToken = null;
 
-      List<OAuth.Parameter> accessTokenParams = OAuth.newList(
-          OAuth.OAUTH_TOKEN, accessor.requestToken,
-          OAuth.OAUTH_VERIFIER, verifier);
-      logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
-      OAuthMessage accessTokenResponse = client.getAccessToken(accessor, null, accessTokenParams);
-      logger.log(Level.INFO, "Access token received: " + accessTokenResponse.getParameters());
-      logger.log(Level.FINE, accessTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
-
-      Properties loginProperties = new Properties();
-      accessorDao.saveAccessor(accessor, loginProperties);
-      consumerDao.saveConsumer(consumer, loginProperties);
-      new PropertiesProvider(options.getLoginFileName()).overwrite(loginProperties);
+        logger.log(Level.INFO, "Waiting for verification token...");
+        String verifier;
+        if (options.isNoServer()) {
+          System.out.print("Verification token: ");
+          BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+          verifier = "";
+          while (verifier.isEmpty()) {
+            String line = reader.readLine();
+            if (line == null) {
+              System.exit(-1);
+            }
+            verifier = line.trim();
+          }
+        } else {
+          verifier = callbackServer.waitForVerifier(accessor, -1);
+          if (verifier == null) {
+            System.err.println("Wait for verifier interrupted");
+            System.exit(-1);
+          }        
+        }
+        logger.log(Level.INFO, "Verification token received: " + verifier);
+  
+        List<OAuth.Parameter> accessTokenParams = OAuth.newList(
+            OAuth.OAUTH_TOKEN, accessor.requestToken,
+            OAuth.OAUTH_VERIFIER, verifier);
+        logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
+        try {
+          OAuthMessage accessTokenResponse = client.getAccessToken(accessor, null, accessTokenParams);
+          logger.log(Level.INFO, "Access token received: " + accessTokenResponse.getParameters());
+          logger.log(Level.FINE, accessTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
+ 
+          callbackServer.setTokenStatus(TokenStatus.VALID);
+ 
+          Properties loginProperties = new Properties();
+          accessorDao.saveAccessor(accessor, loginProperties);
+          consumerDao.saveConsumer(consumer, loginProperties);
+          new PropertiesProvider(options.getLoginFileName()).overwrite(loginProperties);
+        } catch (OAuthProblemException e) {
+          if (e.getHttpStatusCode() == 400) {
+            callbackServer.setTokenStatus(TokenStatus.INVALID);
+          } else {
+            throw e;
+          }
+        }
+      } while (options.isDemo());
     } catch (OAuthProblemException e) {
       OAuthUtil.printOAuthProblemException(e);
     } finally {
@@ -185,6 +184,48 @@ public class Login {
         callbackServer.stop();
       }
     }
+  }
+
+  private static String getAuthorizationUrl(OAuthClient client,
+      OAuthAccessor accessor, LoginOptions options, String callbackUrl)
+      throws IOException, OAuthException, URISyntaxException {
+    List<OAuth.Parameter> requestTokenParams = OAuth.newList();
+    if (callbackUrl != null) {
+      requestTokenParams.add(new OAuth.Parameter(OAuth.OAUTH_CALLBACK, callbackUrl));
+    }
+
+    if (options.getScope() != null) {
+      requestTokenParams.add(new OAuth.Parameter("scope", options.getScope()));
+    }
+
+    if (accessor.consumer.consumerKey.equals("anonymous")) {
+      requestTokenParams.add(new OAuth.Parameter("xoauth_displayname", "OACurl"));
+    }
+
+    logger.log(Level.INFO, "Fetching request token with parameters: " + requestTokenParams);
+    OAuthMessage requestTokenResponse = client.getRequestTokenResponse(accessor, null,
+        requestTokenParams);
+    logger.log(Level.INFO, "Request token received: " + requestTokenResponse.getParameters());
+    logger.log(Level.FINE, requestTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
+
+    String authorizationUrl = accessor.consumer.serviceProvider.userAuthorizationURL;
+
+    if (options.isBuzz()) {
+      authorizationUrl = OAuth.addParameters(authorizationUrl,
+          "scope", options.getScope(),
+          "domain", accessor.consumer.consumerKey,
+          "iconUrl", options.getIconUrl());
+
+      if (accessor.consumer.consumerKey.equals("anonymous")) {
+        authorizationUrl = OAuth.addParameters(authorizationUrl,
+            "xoauth_displayname", "OACurl");
+      }
+    }
+
+    authorizationUrl = OAuth.addParameters(
+        authorizationUrl,
+        OAuth.OAUTH_TOKEN, accessor.requestToken);
+    return authorizationUrl;
   }
 
   private static void launchBrowser(LoginOptions options,

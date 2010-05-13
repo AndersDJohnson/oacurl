@@ -42,10 +42,20 @@ import org.mortbay.jetty.handler.AbstractHandler;
  * @author phopkins@google.com
  */
 public class LoginCallbackServer {
+  public enum TokenStatus {
+    MISSING,
+    VALID,
+    INVALID
+  }
+ 
+  private static final String DEMO_PATH = "/";
   private static final String CALLBACK_PATH = "/OAuthCallback";
 
   private int port;
   private Server server;
+
+  private TokenStatus tokenStatus = TokenStatus.MISSING;
+  private String authorizationUrl;
 
   private Map<String, String> verifierMap = new HashMap<String, String>();
 
@@ -63,6 +73,7 @@ public class LoginCallbackServer {
       }
 
       server.addHandler(new CallbackHandler());
+      server.addHandler(new DemoHandler());
 
       server.start();
     } catch (Exception e) {
@@ -77,6 +88,22 @@ public class LoginCallbackServer {
     }
   }
 
+  public void setTokenStatus(TokenStatus tokenStatus) {
+    this.tokenStatus = tokenStatus;
+  }
+
+  public void setAuthorizationUrl(String authorizationUrl) {
+    this.authorizationUrl = authorizationUrl;
+  }
+ 
+  public String getDemoUrl() throws IOException {
+    if (port == 0) {
+      throw new IllegalStateException("Server is not yet started");
+    }
+
+    return "http://localhost:" + port + DEMO_PATH;
+  }
+ 
   public String getCallbackUrl() {
     if (port == 0) {
       throw new IllegalStateException("Server is not yet started");
@@ -165,7 +192,60 @@ public class LoginCallbackServer {
       // us then close it via JS, at least in Chrome.
       doc.println("window.setTimeout(function() {");
       doc.println("    window.open('', '_self', ''); window.close(); }, 1000);");
+      doc.println("if (window.opener) { window.opener.checkToken(); }");
       doc.println("</script>");
+      doc.println("</body>");
+      doc.println("</HTML>");
+      doc.flush();
+    }
+  }
+
+  /**
+   * Jetty handler that takes the verifier token passed over from the OAuth
+   * provider and stashes it where
+   * {@link LoginCallbackServer#waitForVerifier} will find it.
+   */
+  public class DemoHandler extends AbstractHandler {
+    public void handle(String target, HttpServletRequest request,
+        HttpServletResponse response, int dispatch)
+        throws IOException, ServletException {
+      if (!DEMO_PATH.equals(target)) {
+        return;
+      }
+
+      writeDemoHtml(LoginCallbackServer.this.authorizationUrl, response);
+    }
+
+    private void writeDemoHtml(String authorizationUrl,
+        HttpServletResponse response) throws IOException {
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType("text/html");
+
+      PrintWriter doc = response.getWriter();
+      doc.println("<html>");
+      doc.println("<head><title>OACurl Demo App</title></head>");
+      doc.println("<body>");
+      doc.println("<script type='text/javascript'>");
+      doc.println("function launchAuth() {");
+      doc.println("  window.open('" + authorizationUrl + "', 'oauth', ");
+      doc.println("      'width=640,height=420,toolbar=no,location=yes');");
+      doc.println("}");
+      doc.println("function checkToken() {");
+      // 1s delay for reload because we want to wait for the OAuth check to
+      // happen in the background. One would presumably make a nicer flow-of-
+      // control in a real app.
+      doc.println("  window.setTimeout(function() { window.location.reload(); }, 1000);");
+      doc.println("}");
+      doc.println("</script>");
+      doc.println("<h1>OACurl Demo App</h1>");
+      doc.println("<p>Current token status: <b>" + LoginCallbackServer.this.tokenStatus + "</b></p>");
+      doc.println("<button onclick='launchAuth()'>OAuth Login</button><br />");
+      doc.println("<h2>Recommended JavaScript for Authorization</h2>");
+      doc.println("<pre>");
+      doc.println("window.open('<i>http://...</i>',");
+      doc.println("    'oauth', ");
+      doc.println("    'width=640,height=420,toolbar=no,location=yes');");
+      doc.println("</pre>");
       doc.println("</body>");
       doc.println("</HTML>");
       doc.flush();
