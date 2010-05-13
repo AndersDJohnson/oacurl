@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# Copyright 2010 Google Inc. All Rights Reserved.
+#
+# Usage: oacurl [command] [options]
+#
+#   command: either 'login' or 'fetch'.  Default: fetch
+#
+#   For example, try `oacurl login --help` and `oacurl fetch --help`
+#
+
+OACURL_HOME=$(dirname $(readlink -f $0))
+
+# set JAVACMD
+if [ -z "$JAVACMD" ] ; then
+  if [ -n "$JAVA_HOME"  ] ; then
+    JAVACMD=$JAVA_HOME/bin/java
+  else
+    JAVACMD=`which java`
+  fi
+fi
+
+if [ ! -x "$JAVACMD" ] ; then
+  echo "Error: JAVA_HOME is not defined correctly."
+  echo "  We cannot execute $JAVACMD"
+  exit
+fi
+
+# setup CLASSPATH
+if [ -n "$CLASSPATH" ] ; then
+  LOCALCLASSPATH=$CLASSPATH
+fi
+
+# Add all .jar files in OACurl target directory (don't worry about version)
+OACURL_JARS=`ls $OACURL_HOME/target/*.jar | awk '{ printf ":%s", $0 }'`
+LOCALCLASSPATH=${LOCALCLASSPATH}${OACURL_JARS}
+
+
+args=($@);
+
+# run command
+case "$1" in
+  login)
+    OACURL_CLASS="com.google.oacurl.Login"
+    unset args[0]
+    ;;
+  fetch)
+    OACURL_CLASS="com.google.oacurl.Fetch"
+    unset args[0]
+    ;;
+  *)
+    OACURL_CLASS="com.google.oacurl.Fetch"
+    ;;
+esac
+
+$JAVACMD -cp "$LOCALCLASSPATH" $OACURL_CLASS "${args[@]}"
