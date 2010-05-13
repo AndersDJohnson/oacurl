@@ -29,12 +29,15 @@ public class CommonOptions {
   private String loginFileName;
   private boolean help;
   private boolean verbose;
+  private boolean insecure;
 
   public CommonOptions() {
     options = new Options();
     options.addOption(null, "access-file", true, "properties file with access token and secret");
     options.addOption("h", "help", false, "This help text");
     options.addOption("v", "verbose", false, "Make the operation more talkative");
+    options.addOption("k", "insecure", false,
+        "Allow connections to SSL sites with non-matching hostnames");
   }
 
   public CommandLine parse(String[] args) throws ParseException {
@@ -44,6 +47,7 @@ public class CommonOptions {
         new File(System.getProperty("user.home"), DEFAULT_LOGIN_FILE_NAME).getAbsolutePath());
     help = line.hasOption("help");
     verbose = line.hasOption("verbose");
+    insecure = line.hasOption("insecure");
 
     return line;
   }
@@ -58,6 +62,10 @@ public class CommonOptions {
 
   public boolean isVerbose() {
     return verbose;
+  }
+
+  public boolean isInsecure() {
+    return insecure;
   }
 
   public Options getOptions() {

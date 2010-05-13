@@ -36,6 +36,8 @@ import net.oauth.http.HttpMessage;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 
 import com.google.oacurl.dao.AccessorDao;
 import com.google.oacurl.dao.ConsumerDao;
@@ -73,6 +75,10 @@ public class Fetch {
     if (args.length != 1) {
       new HelpFormatter().printHelp("url", options.getOptions());
       System.exit(-1);
+    }
+
+    if (options.isInsecure()) {
+      SSLSocketFactory.getSocketFactory().setHostnameVerifier(new AllowAllHostnameVerifier());
     }
 
     LoggingConfig.init(options.isVerbose());
