@@ -228,7 +228,7 @@ public class LoginCallbackServer {
       doc.println("<script type='text/javascript'>");
       doc.println("function launchAuth() {");
       doc.println("  window.open('" + authorizationUrl + "', 'oauth', ");
-      doc.println("      'width=640,height=420,toolbar=no,location=yes');");
+      doc.println("      'width=640,height=450,toolbar=no,location=yes');");
       doc.println("}");
       doc.println("function checkToken() {");
       // 1s delay for reload because we want to wait for the OAuth check to
@@ -244,7 +244,7 @@ public class LoginCallbackServer {
       doc.println("<pre>");
       doc.println("window.open('<i>http://...</i>',");
       doc.println("    'oauth', ");
-      doc.println("    'width=640,height=420,toolbar=no,location=yes');");
+      doc.println("    'width=640,height=450,toolbar=no,location=yes');");
       doc.println("</pre>");
       doc.println("</body>");
       doc.println("</HTML>");
