@@ -9,7 +9,35 @@
 #   For example, try `oacurl login --help` and `oacurl fetch --help`
 #
 
-OACURL_HOME=$(dirname $(readlink -f $0))
+# resolve_symlink taken from:
+# http://muffinresearch.co.uk/archives/2008/10/10/bash-resolving-symlinks-to-shellscripts/
+
+function resolve_symlink {
+  SCRIPT=$1 NEWSCRIPT=''
+
+  until [ "$SCRIPT" = "$NEWSCRIPT" ]; do
+    if [ "${SCRIPT:0:1}" = '.' ]; then
+      SCRIPT=$PWD/$SCRIPT;
+    fi
+
+    cd $(dirname $SCRIPT)
+
+    if [ ! "${SCRIPT:0:1}" = '.' ]; then
+      SCRIPT=$(basename $SCRIPT);
+    fi
+
+    SCRIPT=${NEWSCRIPT:=$SCRIPT}
+    NEWSCRIPT=$(ls -l $SCRIPT | awk '{ print $NF }')
+  done
+
+  if [ ! "${SCRIPT:0:1}" = '/' ]; then
+    SCRIPT=$PWD/$SCRIPT;
+  fi
+
+  echo $(dirname $SCRIPT)
+}
+
+OACURL_HOME=$(resolve_symlink $0)
 
 # set JAVACMD
 if [ -z "$JAVACMD" ] ; then
