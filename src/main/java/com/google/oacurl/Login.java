@@ -39,6 +39,8 @@ import net.oauth.http.HttpMessage;
 
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.ParseException;
+import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 
 import com.google.oacurl.LoginCallbackServer.TokenStatus;
 import com.google.oacurl.dao.AccessorDao;
@@ -71,6 +73,10 @@ public class Login {
     if (options.isHelp()) {
       new HelpFormatter().printHelp(" ", options.getOptions());
       System.exit(0);
+    }
+
+    if (options.isInsecure()) {
+      SSLSocketFactory.getSocketFactory().setHostnameVerifier(new AllowAllHostnameVerifier());
     }
 
     LoggingConfig.init(options.isVerbose());
