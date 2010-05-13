@@ -142,7 +142,9 @@ public class FetchOptions extends CommonOptions {
     } else if (lowerCaseFileName.endsWith(".txt")) {
       contentType = CONTENT_TYPE_MAP.get("TEXT");
     } else if (lowerCaseFileName.endsWith(".xml")) {
-      contentType = CONTENT_TYPE_MAP.get("XML");
+      // With this tool, if you're sending something as .xml you probably are
+      // sending Atom.
+      contentType = CONTENT_TYPE_MAP.get("ATOM");
     } else {
       contentType = "application/octet-stream";
     }
