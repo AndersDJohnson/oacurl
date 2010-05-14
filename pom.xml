@@ -3,7 +3,7 @@
   <groupId>com.google.oacurl</groupId>
   <artifactId>oacurl</artifactId>
   <name>OACurl</name>
-  <version>1.0.0</version>
+  <version>1.0.1-SNAPSHOT</version>
   <description>OAuth-enabled HTTP tool written in Java</description>
   <url>http://code.google.com/p/oacurl/</url>
 
