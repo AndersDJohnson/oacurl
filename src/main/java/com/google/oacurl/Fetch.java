@@ -17,6 +17,7 @@ package com.google.oacurl;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 import java.util.Map.Entry;
@@ -29,15 +30,24 @@ import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
 import net.oauth.ParameterStyle;
+import net.oauth.OAuth.Parameter;
 import net.oauth.client.OAuthClient;
 import net.oauth.client.OAuthResponseMessage;
 import net.oauth.client.httpclient4.HttpClient4;
+import net.oauth.client.httpclient4.HttpClientPool;
 import net.oauth.http.HttpMessage;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.http.client.HttpClient;
+import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
+import org.apache.http.protocol.HTTP;
 
 import com.google.oacurl.dao.AccessorDao;
 import com.google.oacurl.dao.ConsumerDao;
@@ -54,6 +64,8 @@ import com.google.oacurl.util.PropertiesProvider;
  * <p>
  * Assumes that the user has run {@link Login} to save the OAuth access
  * token to a local properties file.
+ * <p>
+ * TODO(phopkins): Make some of this a bit more object-oriented.
  *
  * @author phopkins@google.com
  */
@@ -105,7 +117,7 @@ public class Fetch {
     OAuthConsumer consumer = consumerDao.loadConsumer(loginProperties, serviceProvider);
     OAuthAccessor accessor = accessorDao.loadAccessor(loginProperties, consumer);
 
-    OAuthClient client = new OAuthClient(new HttpClient4());
+    OAuthClient client = new OAuthClient(new HttpClient4(SingleClient.HTTP_CLIENT_POOL));
 
     try {
       OAuthMessage request;
@@ -134,7 +146,8 @@ public class Fetch {
             null);
       }
 
-      request.getHeaders().addAll(options.getHeaders());
+      List<Parameter> headers = options.getHeaders();
+      addHeadersToRequest(request, headers);
 
       OAuthResponseMessage response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
 
@@ -153,6 +166,59 @@ public class Fetch {
       }
     } catch (OAuthProblemException e) {
       OAuthUtil.printOAuthProblemException(e);
+    }
+  }
+
+  private static void addHeadersToRequest(OAuthMessage request, List<Parameter> headers) {
+    // HACK(phopkins): If someone added their own Expect header, then tell
+    // Apache not to add its own. This is a bit hacky, but gets around that
+    // the RequestExpectContinue class doesn't check for an existing header
+    // before adding its own.
+    //
+    // Fix for: http://code.google.com/p/oacurl/issues/detail?id=1
+    boolean hasExpect = false;
+    for (Parameter param : headers) {
+      if (param.getKey().equalsIgnoreCase(HTTP.EXPECT_DIRECTIVE)) {
+        hasExpect = true;
+        break;
+      }
+    }
+
+    if (hasExpect) {
+      HttpProtocolParams.setUseExpectContinue(
+          SingleClient.HTTP_CLIENT_POOL.getHttpClient().getParams(), false);
+    }
+
+    request.getHeaders().addAll(headers);
+  }
+
+  /**
+   * Broken out of {@link HttpClient4} so that we can get access to the
+   * underlying {@link DefaultHttpClient} object.
+   */
+  private static class SingleClient implements HttpClientPool {
+    public static final SingleClient HTTP_CLIENT_POOL = new SingleClient();
+
+    private SingleClient() {
+      HttpClient client = new DefaultHttpClient();
+      ClientConnectionManager mgr = client.getConnectionManager();
+      if (!(mgr instanceof ThreadSafeClientConnManager)) {
+        HttpParams params = client.getParams();
+        client = new DefaultHttpClient(new ThreadSafeClientConnManager(
+            params, mgr.getSchemeRegistry()), params);
+      }
+
+      this.client = client;
+    }
+
+    private final HttpClient client;
+
+    public HttpClient getHttpClient() {
+      return client;
+    }
+
+    public HttpClient getHttpClient(URL server) {
+      return client;
     }
   }
 }
