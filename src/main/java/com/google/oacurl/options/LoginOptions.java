@@ -14,8 +14,13 @@
 
 package com.google.oacurl.options;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import net.oauth.OAuth;
+import net.oauth.OAuth.Parameter;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.OptionBuilder;
@@ -47,7 +52,7 @@ public class LoginOptions extends CommonOptions {
   private boolean buzz;
   private boolean latitude;
   private boolean demo;
-  private String iconUrl;
+  private List<OAuth.Parameter> parameters;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
@@ -68,19 +73,31 @@ public class LoginOptions extends CommonOptions {
     options.addOption(null, "consumer-secret", true, "Consumer key (if file is not specified)");
     options.addOption(null, "icon-url", true, "URL to an app icon to show on Buzz page");
     options.addOption(null, "demo", false, "Loads a demo web-app for the login flow");
+    options.addOption(OptionBuilder.withArgName("query parameter")
+        .withLongOpt("param")
+        .hasArg()
+        .withDescription("Custom parameter to add to the authorization URL").create("P"));
   }
 
   @Override
   public CommandLine parse(String[] args) throws ParseException {
     CommandLine line = super.parse(args);
 
+    parameters = new ArrayList<Parameter>();
+
     serviceProviderFileName = line.getOptionValue("service-provider");
     consumerFileName = line.getOptionValue("consumer");
     consumerKey = line.getOptionValue("consumer-key");
     consumerSecret = line.getOptionValue("consumer-secret");
     browser = line.getOptionValue("browser");
-    iconUrl = line.getOptionValue("icon-url",
-        "http://www.gstatic.com/codesite/ph/images/defaultlogo.png");
+
+    // backward compatibility for --icon-url
+    if (line.hasOption("icon-url")) {
+      parameters.add(new Parameter("iconUrl", line.getOptionValue("icon-url")));
+    } else if (line.hasOption("buzz")) {
+      parameters.add(new Parameter("iconUrl",
+          "http://www.gstatic.com/codesite/ph/images/defaultlogo.png"));
+    }
 
     noserver = line.hasOption("noserver");
     nobrowser = line.hasOption("nobrowser");
@@ -106,6 +123,14 @@ public class LoginOptions extends CommonOptions {
       scope = SCOPE_MAP.get("BUZZ");
     } else if (isLatitude()) {
       scope = SCOPE_MAP.get("LATITUDE");
+    }
+
+    String[] parameterArray = line.getOptionValues("param");
+    if (parameterArray != null) {
+      for (String param : parameterArray) {
+        String[] paramBits = param.split("=", 2);
+        parameters.add(new OAuth.Parameter(paramBits[0].trim(), paramBits[1].trim()));
+      }
     }
 
     return line;
@@ -155,7 +180,7 @@ public class LoginOptions extends CommonOptions {
     return demo;
   }
 
-  public String getIconUrl() {
-    return iconUrl;
+  public List<Parameter> getParameters() {
+    return parameters;
   }
 }
