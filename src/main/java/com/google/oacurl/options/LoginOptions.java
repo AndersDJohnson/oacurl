@@ -32,6 +32,7 @@ public class LoginOptions extends CommonOptions {
   static {
     SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
     SCOPE_MAP.put("BUZZ_READONLY", "https://www.googleapis.com/auth/buzz.readonly");
+    SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude");
     SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
   }
 
@@ -44,12 +45,14 @@ public class LoginOptions extends CommonOptions {
   private boolean nobrowser;
   private boolean noserver;
   private boolean buzz;
+  private boolean latitude;
   private boolean demo;
   private String iconUrl;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
     options.addOption(null, "buzz", false, "Use defaults for Buzz");
+    options.addOption(null, "latitude", false, "Use defaults for Latitude");
     options.addOption("p", "service-provider", true,
         "properties file with service provider URLs (or GOOGLE, YAHOO, TWITTER, etc.)");
     options.addOption("c", "consumer", true, "properties file with consumer key and secret");
@@ -82,6 +85,7 @@ public class LoginOptions extends CommonOptions {
     noserver = line.hasOption("noserver");
     nobrowser = line.hasOption("nobrowser");
     buzz = line.hasOption("buzz");
+    latitude = line.hasOption("latitude");
     demo = line.hasOption("demo");
 
     if (line.hasOption("scope")) {
@@ -100,6 +104,8 @@ public class LoginOptions extends CommonOptions {
       scope = scopeBuilder.toString();
     } else if (isBuzz()) {
       scope = SCOPE_MAP.get("BUZZ");
+    } else if (isLatitude()) {
+      scope = SCOPE_MAP.get("LATITUDE");
     }
 
     return line;
@@ -141,6 +147,10 @@ public class LoginOptions extends CommonOptions {
     return buzz;
   }
  
+  public boolean isLatitude() {
+    return latitude;
+  }
+
   public boolean isDemo() {
     return demo;
   }

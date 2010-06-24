@@ -87,7 +87,13 @@ public class Login {
 
     String serviceProviderFileName = options.getServiceProviderFileName();
     if (serviceProviderFileName == null) {
-      serviceProviderFileName = options.isBuzz() ? "BUZZ" : "GOOGLE";
+      if (options.isBuzz()) {
+        serviceProviderFileName = "BUZZ";
+      } else if (options.isLatitude()) {
+        serviceProviderFileName = "LATITUDE";
+      } else {
+        serviceProviderFileName = "GOOGLE";
+      }
     }
 
     // We have a wee library of service provider properties files bundled into
@@ -226,6 +232,11 @@ public class Login {
         authorizationUrl = OAuth.addParameters(authorizationUrl,
             "xoauth_displayname", "OACurl");
       }
+    }
+
+    if (options.isLatitude()) {
+      authorizationUrl = OAuth.addParameters(authorizationUrl,
+          "domain", accessor.consumer.consumerKey);
     }
 
     authorizationUrl = OAuth.addParameters(
