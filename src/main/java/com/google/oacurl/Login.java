@@ -225,8 +225,7 @@ public class Login {
     if (options.isBuzz()) {
       authorizationUrl = OAuth.addParameters(authorizationUrl,
           "scope", options.getScope(),
-          "domain", accessor.consumer.consumerKey,
-          "iconUrl", options.getIconUrl());
+          "domain", accessor.consumer.consumerKey);
 
       if (accessor.consumer.consumerKey.equals("anonymous")) {
         authorizationUrl = OAuth.addParameters(authorizationUrl,
@@ -238,6 +237,8 @@ public class Login {
       authorizationUrl = OAuth.addParameters(authorizationUrl,
           "domain", accessor.consumer.consumerKey);
     }
+
+    authorizationUrl = OAuth.addParameters(authorizationUrl, options.getParameters());
 
     authorizationUrl = OAuth.addParameters(
         authorizationUrl,
