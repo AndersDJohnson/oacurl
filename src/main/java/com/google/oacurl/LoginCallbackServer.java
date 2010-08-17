@@ -33,6 +33,8 @@ import org.mortbay.jetty.Request;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.handler.AbstractHandler;
 
+import com.google.oacurl.options.LoginOptions;
+
 /**
  * Class that runs a Jetty server on a free port, waiting for OAuth to redirect
  * to it with the one-time authorization token.
@@ -51,6 +53,8 @@ public class LoginCallbackServer {
   private static final String DEMO_PATH = "/";
   private static final String CALLBACK_PATH = "/OAuthCallback";
 
+  private final LoginOptions options;
+
   private int port;
   private Server server;
 
@@ -58,6 +62,10 @@ public class LoginCallbackServer {
   private String authorizationUrl;
 
   private Map<String, String> verifierMap = new HashMap<String, String>();
+
+  public LoginCallbackServer(LoginOptions options) {
+    this.options = options;
+  }
 
   public void start() {
     if (server != null) {
@@ -170,7 +178,20 @@ public class LoginCallbackServer {
       ((Request) request).setHandled(true);
 
       String requestToken = request.getParameter(OAuth.OAUTH_TOKEN);
-      String verifier = request.getParameter(OAuth.OAUTH_VERIFIER);
+
+      String verifierName;
+      switch (options.getVersion()) {
+      case V1:
+        verifierName = OAuth.OAUTH_VERIFIER;
+        break;
+      case WRAP:
+        verifierName = "wrap_verification_code";
+        break;
+      default:
+        throw new AssertionError("Unknown version: " + options.getVersion());
+      }
+
+      String verifier = request.getParameter(verifierName);
 
       synchronized (verifierMap) {
         verifierMap.put(requestToken, verifier);

@@ -53,6 +53,7 @@ public class LoginOptions extends CommonOptions {
   private boolean latitude;
   private boolean demo;
   private List<OAuth.Parameter> parameters;
+  private OAuthVersion version;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
@@ -77,6 +78,8 @@ public class LoginOptions extends CommonOptions {
         .withLongOpt("param")
         .hasArg()
         .withDescription("Custom parameter to add to the authorization URL").create("P"));
+    options.addOption("1", "oauth1.0a", false, "Use OAuth 1.0a (default)");
+    options.addOption(null, "wrap", false, "Use OAuth-WRAP");
   }
 
   @Override
@@ -133,6 +136,8 @@ public class LoginOptions extends CommonOptions {
       }
     }
 
+    version = line.hasOption("wrap") ? OAuthVersion.WRAP : OAuthVersion.V1;
+
     return line;
   }
 
@@ -178,6 +183,10 @@ public class LoginOptions extends CommonOptions {
 
   public boolean isDemo() {
     return demo;
+  }
+
+  public OAuthVersion getVersion() {
+    return version;
   }
 
   public List<Parameter> getParameters() {

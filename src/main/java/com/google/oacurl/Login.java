@@ -21,12 +21,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.oauth.OAuth;
+import net.oauth.OAuth.Parameter;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthException;
@@ -117,15 +119,24 @@ public class Login {
       if (options.isNoServer()) {
         callbackUrl = null;
       } else {
-        callbackServer = new LoginCallbackServer();
+        callbackServer = new LoginCallbackServer(options);
         callbackServer.start();
 
         callbackUrl = callbackServer.getCallbackUrl();
       }
 
       do {
-        String authorizationUrl = getAuthorizationUrl(client, accessor, options,
-            callbackUrl);
+        String authorizationUrl;
+        switch (options.getVersion()) {
+        case V1:
+          authorizationUrl = getV1AuthorizationUrl(client, accessor, options, callbackUrl);
+          break;
+        case WRAP:
+          authorizationUrl = getWrapAuthorizationUrl(accessor, callbackUrl);
+          break;
+        default:
+          throw new AssertionError("Unknown version: " + options.getVersion());
+        }
   
         callbackServer.setAuthorizationUrl(authorizationUrl);
   
@@ -165,28 +176,29 @@ public class Login {
           }        
         }
         logger.log(Level.INFO, "Verification token received: " + verifier);
+        boolean success;
   
-        List<OAuth.Parameter> accessTokenParams = OAuth.newList(
-            OAuth.OAUTH_TOKEN, accessor.requestToken,
-            OAuth.OAUTH_VERIFIER, verifier);
-        logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
-        try {
-          OAuthMessage accessTokenResponse = client.getAccessToken(accessor, null, accessTokenParams);
-          logger.log(Level.INFO, "Access token received: " + accessTokenResponse.getParameters());
-          logger.log(Level.FINE, accessTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
- 
+        switch (options.getVersion()) {
+        case V1:
+          success = fetchV1AccessToken(accessor, client, verifier);
+          break;
+        case WRAP:
+          success = fetchWrapAccessToken(accessor, callbackUrl, verifier);
+          break;
+        default:
+          throw new AssertionError("Unknown version: " + options.getVersion());
+        }
+        
+        if (success) {
           callbackServer.setTokenStatus(TokenStatus.VALID);
- 
+
           Properties loginProperties = new Properties();
           accessorDao.saveAccessor(accessor, loginProperties);
           consumerDao.saveConsumer(consumer, loginProperties);
+          loginProperties.put("oauthVersion", options.getVersion().toString());
           new PropertiesProvider(options.getLoginFileName()).overwrite(loginProperties);
-        } catch (OAuthProblemException e) {
-          if (e.getHttpStatusCode() == 400) {
-            callbackServer.setTokenStatus(TokenStatus.INVALID);
-          } else {
-            throw e;
-          }
+        } else {
+          callbackServer.setTokenStatus(TokenStatus.INVALID);
         }
       } while (options.isDemo());
     } catch (OAuthProblemException e) {
@@ -198,7 +210,69 @@ public class Login {
     }
   }
 
-  private static String getAuthorizationUrl(OAuthClient client,
+  private static boolean fetchV1AccessToken(OAuthAccessor accessor,
+      OAuthClient client, String verifier)
+      throws IOException, OAuthException, URISyntaxException {
+    boolean success;
+
+    List<OAuth.Parameter> accessTokenParams = OAuth.newList(
+        OAuth.OAUTH_TOKEN, accessor.requestToken,
+        OAuth.OAUTH_VERIFIER, verifier);
+    logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
+ 
+    try {
+      OAuthMessage accessTokenResponse = client.getAccessToken(accessor, null, accessTokenParams);
+      logger.log(Level.INFO, "Access token received: " + accessTokenResponse.getParameters());
+      logger.log(Level.FINE, accessTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
+  
+      success = true;
+    } catch (OAuthProblemException e) {
+      if (e.getHttpStatusCode() == 400) {
+        success = false;
+      } else {
+        throw e;
+      }
+    }
+
+    return success;
+  }
+
+  private static boolean fetchWrapAccessToken(OAuthAccessor accessor, String callbackUrl,
+      String verifier) throws IOException {
+    OAuthConsumer consumer = accessor.consumer;
+
+    List<OAuth.Parameter> accessTokenParams = OAuth.newList(
+        "wrap_client_id", consumer.consumerKey,
+        "wrap_client_secret", consumer.consumerSecret,
+        // HACK(phopkins): The callback needs to be exactly the same, so put in
+        // the version if it that was made in #getWrapAuthorizationUrl
+        "wrap_callback", OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken),
+        "wrap_verification_code", verifier);
+
+    logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
+
+    String url = OAuth.addParameters(consumer.serviceProvider.accessTokenURL, accessTokenParams);
+    BufferedReader reader = new BufferedReader(new InputStreamReader(new URL(url).openStream()));
+
+    StringBuilder resp = new StringBuilder();
+
+    String line;
+    while ((line = reader.readLine()) != null) {
+      resp.append(line);
+    }
+
+    List<Parameter> params = OAuth.decodeForm(resp.toString());
+    for (Parameter param : params) {
+      if (param.getKey().equals("wrap_access_token")) {
+        accessor.accessToken = param.getValue();
+        accessor.tokenSecret = "";
+      }
+    }
+    
+    return accessor.accessToken != null;
+  }
+
+  private static String getV1AuthorizationUrl(OAuthClient client,
       OAuthAccessor accessor, LoginOptions options, String callbackUrl)
       throws IOException, OAuthException, URISyntaxException {
     List<OAuth.Parameter> requestTokenParams = OAuth.newList();
@@ -245,6 +319,20 @@ public class Login {
         OAuth.OAUTH_TOKEN, accessor.requestToken);
     return authorizationUrl;
   }
+
+  private static String getWrapAuthorizationUrl(OAuthAccessor accessor, String callbackUrl)
+      throws IOException {
+    OAuthConsumer consumer = accessor.consumer;
+
+    String requestToken = Double.toHexString(Math.random());
+
+    accessor.requestToken = requestToken;
+
+    return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
+        "wrap_client_id", consumer.consumerKey,
+        "wrap_callback", OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, requestToken));
+  }
+
 
   private static void launchBrowser(LoginOptions options,
       String authorizationUrl) {

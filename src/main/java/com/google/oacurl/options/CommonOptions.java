@@ -22,7 +22,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 public class CommonOptions {
-  private static final String DEFAULT_LOGIN_FILE_NAME = ".oacurl.properties";
+	private static final String DEFAULT_LOGIN_FILE_NAME = ".oacurl.properties";
 
   protected final Options options;
 

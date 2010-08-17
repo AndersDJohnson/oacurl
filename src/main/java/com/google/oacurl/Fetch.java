@@ -16,7 +16,9 @@ package com.google.oacurl;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.Properties;
@@ -26,6 +28,7 @@ import java.util.logging.Logger;
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
+import net.oauth.OAuthException;
 import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
@@ -54,6 +57,7 @@ import com.google.oacurl.dao.ConsumerDao;
 import com.google.oacurl.dao.ServiceProviderDao;
 import com.google.oacurl.options.FetchOptions;
 import com.google.oacurl.options.FetchOptions.Method;
+import com.google.oacurl.options.OAuthVersion;
 import com.google.oacurl.util.LoggingConfig;
 import com.google.oacurl.util.MultipartRelatedInputStream;
 import com.google.oacurl.util.OAuthUtil;
@@ -117,6 +121,10 @@ public class Fetch {
     OAuthConsumer consumer = consumerDao.loadConsumer(loginProperties, serviceProvider);
     OAuthAccessor accessor = accessorDao.loadAccessor(loginProperties, consumer);
 
+    OAuthVersion version = (loginProperties.containsKey("oauthVersion")) ?
+        OAuthVersion.valueOf(loginProperties.getProperty("oauthVersion")) :
+          OAuthVersion.V1;
+
     OAuthClient client = new OAuthClient(new HttpClient4(SingleClient.HTTP_CLIENT_POOL));
 
     try {
@@ -134,16 +142,10 @@ public class Fetch {
         } else {
           bodyStream = System.in;
         }
-        request = accessor.newRequestMessage(method.toString(),
-            url,
-            null,
-            bodyStream);
+        request = newRequestMessage(accessor, method, url, bodyStream, version);
         request.getHeaders().add(new OAuth.Parameter("Content-Type", options.getContentType()));
       } else {
-        request = accessor.newRequestMessage(method.toString(),
-            url,
-            null,
-            null);
+        request = newRequestMessage(accessor, method, url, null, version);
       }
 
       List<Parameter> headers = options.getHeaders();
@@ -167,6 +169,38 @@ public class Fetch {
     } catch (OAuthProblemException e) {
       OAuthUtil.printOAuthProblemException(e);
     }
+  }
+
+  private static OAuthMessage newRequestMessage(OAuthAccessor accessor,
+      Method method, String url, InputStream bodyStream, OAuthVersion version)
+      throws OAuthException, IOException, URISyntaxException {
+
+    // Inlined in order to put a conditional on #addRequiredParameters
+    String methodStr = method.toString();
+    if (methodStr == null) {
+      methodStr = (String) accessor.getProperty("httpMethod");
+      if (methodStr == null) {
+        methodStr = (String) accessor.consumer.getProperty("httpMethod");
+        if (methodStr == null) {
+          methodStr = OAuthMessage.GET;
+        }
+      }
+    }
+
+    if (version == OAuthVersion.WRAP) {
+      url = OAuth.addParameters(url, "wrap_access_token", accessor.accessToken);
+    }
+
+    OAuthMessage message = new OAuthMessage(methodStr, url, null, bodyStream);
+
+    // By not calling #addRequiredParameters, we prevent all the OAuth 1.0
+    // signing bits and adding of headers, while retaining all of our existing
+    // code around HttpMessages and such for OAuth-WRAP.
+    if (version == OAuthVersion.V1) {
+      message.addRequiredParameters(accessor);
+    }
+
+    return message;
   }
 
   private static void addHeadersToRequest(OAuthMessage request, List<Parameter> headers) {
