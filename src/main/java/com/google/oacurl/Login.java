@@ -17,13 +17,17 @@ package com.google.oacurl;
 import java.awt.Desktop;
 import java.awt.Desktop.Action;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,6 +42,7 @@ import net.oauth.OAuthServiceProvider;
 import net.oauth.client.OAuthClient;
 import net.oauth.client.httpclient4.HttpClient4;
 import net.oauth.http.HttpMessage;
+import net.oauth.http.HttpResponseMessage;
 
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.ParseException;
@@ -82,6 +87,9 @@ public class Login {
     }
 
     LoggingConfig.init(options.isVerbose());
+    if (options.isVerbose()) {
+      LoggingConfig.enableWireLog();
+    }
 
     ServiceProviderDao serviceProviderDao = new ServiceProviderDao();
     ConsumerDao consumerDao = new ConsumerDao(options);
@@ -132,14 +140,16 @@ public class Login {
           authorizationUrl = getV1AuthorizationUrl(client, accessor, options, callbackUrl);
           break;
         case WRAP:
-          authorizationUrl = getWrapAuthorizationUrl(accessor, callbackUrl);
+          authorizationUrl = getWrapAuthorizationUrl(accessor, options, callbackUrl);
           break;
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
         }
   
-        callbackServer.setAuthorizationUrl(authorizationUrl);
-  
+        if (!options.isNoServer()) {
+          callbackServer.setAuthorizationUrl(authorizationUrl);
+        }
+
         if (!launchedBrowser) {
           String url = options.isDemo() ? callbackServer.getDemoUrl() : authorizationUrl;
     
@@ -183,14 +193,16 @@ public class Login {
           success = fetchV1AccessToken(accessor, client, verifier);
           break;
         case WRAP:
-          success = fetchWrapAccessToken(accessor, callbackUrl, verifier);
+          success = fetchWrapAccessToken(accessor, client, callbackUrl, verifier);
           break;
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
         }
         
         if (success) {
-          callbackServer.setTokenStatus(TokenStatus.VALID);
+          if (callbackServer != null) {
+            callbackServer.setTokenStatus(TokenStatus.VALID);
+          }
 
           Properties loginProperties = new Properties();
           accessorDao.saveAccessor(accessor, loginProperties);
@@ -198,7 +210,9 @@ public class Login {
           loginProperties.put("oauthVersion", options.getVersion().toString());
           new PropertiesProvider(options.getLoginFileName()).overwrite(loginProperties);
         } else {
-          callbackServer.setTokenStatus(TokenStatus.INVALID);
+          if (callbackServer != null) {
+            callbackServer.setTokenStatus(TokenStatus.INVALID);
+          }
         }
       } while (options.isDemo());
     } catch (OAuthProblemException e) {
@@ -237,22 +251,40 @@ public class Login {
     return success;
   }
 
-  private static boolean fetchWrapAccessToken(OAuthAccessor accessor, String callbackUrl,
-      String verifier) throws IOException {
+  private static boolean fetchWrapAccessToken(OAuthAccessor accessor, OAuthClient client,
+      String callbackUrl, String verifier) throws IOException {
     OAuthConsumer consumer = accessor.consumer;
+
+    // HACK(phopkins): The callback needs to be exactly the same, so put in
+    // the version if it that was made in #getWrapAuthorizationUrl
+    if (callbackUrl != null) {
+      callbackUrl = OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken);
+    } else {
+      callbackUrl = "";
+    }
 
     List<OAuth.Parameter> accessTokenParams = OAuth.newList(
         "wrap_client_id", consumer.consumerKey,
         "wrap_client_secret", consumer.consumerSecret,
-        // HACK(phopkins): The callback needs to be exactly the same, so put in
-        // the version if it that was made in #getWrapAuthorizationUrl
-        "wrap_callback", OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken),
+        "wrap_callback", callbackUrl,
         "wrap_verification_code", verifier);
 
     logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
+    
+    String requestString = OAuth.formEncode(accessTokenParams);
+    byte[] requestBytes = requestString.getBytes("UTF-8");
+    InputStream requestStream = new ByteArrayInputStream(requestBytes);
 
-    String url = OAuth.addParameters(consumer.serviceProvider.accessTokenURL, accessTokenParams);
-    BufferedReader reader = new BufferedReader(new InputStreamReader(new URL(url).openStream()));
+    String url = consumer.serviceProvider.accessTokenURL;
+
+    HttpMessage request = new HttpMessage("POST", new URL(url), requestStream);
+    request.headers.add(new Parameter("Content-Type", "application/x-www-form-urlencoded"));
+    request.headers.add(new Parameter("Content-Length", "" + requestString.length()));
+    
+    HttpResponseMessage response = client.getHttpClient().execute(request,
+        client.getHttpParameters());
+    InputStream bodyStream = response.getBody();
+    BufferedReader reader = new BufferedReader(new InputStreamReader(bodyStream));
 
     StringBuilder resp = new StringBuilder();
 
@@ -261,6 +293,8 @@ public class Login {
       resp.append(line);
     }
 
+    logger.log(Level.INFO, "Access token response:" + resp);
+
     List<Parameter> params = OAuth.decodeForm(resp.toString());
     for (Parameter param : params) {
       if (param.getKey().equals("wrap_access_token")) {
@@ -268,7 +302,7 @@ public class Login {
         accessor.tokenSecret = "";
       }
     }
-    
+
     return accessor.accessToken != null;
   }
 
@@ -320,17 +354,28 @@ public class Login {
     return authorizationUrl;
   }
 
-  private static String getWrapAuthorizationUrl(OAuthAccessor accessor, String callbackUrl)
-      throws IOException {
+  private static String getWrapAuthorizationUrl(OAuthAccessor accessor,
+      LoginOptions options, String callbackUrl) throws IOException {
     OAuthConsumer consumer = accessor.consumer;
 
-    String requestToken = Double.toHexString(Math.random());
+    String requestToken = Long.toHexString(new Random().nextLong());
 
     accessor.requestToken = requestToken;
 
+    List<Parameter> authParams = new ArrayList<Parameter>();
+    authParams.add(new OAuth.Parameter("wrap_client_id", consumer.consumerKey));
+
+    if (callbackUrl != null) {
+      authParams.add(new OAuth.Parameter("wrap_callback",
+          OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, requestToken)));
+    }
+
+    if (options.getScope() != null) {
+      authParams.add(new OAuth.Parameter("wrap_scope", options.getScope()));
+    }
+
     return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
-        "wrap_client_id", consumer.consumerKey,
-        "wrap_callback", OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, requestToken));
+        authParams);
   }
 
 
