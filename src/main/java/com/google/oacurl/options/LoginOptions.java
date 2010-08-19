@@ -54,6 +54,7 @@ public class LoginOptions extends CommonOptions {
   private boolean demo;
   private List<OAuth.Parameter> parameters;
   private OAuthVersion version;
+  private String host;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
@@ -74,6 +75,7 @@ public class LoginOptions extends CommonOptions {
     options.addOption(null, "consumer-secret", true, "Consumer key (if file is not specified)");
     options.addOption(null, "icon-url", true, "URL to an app icon to show on Buzz page");
     options.addOption(null, "demo", false, "Loads a demo web-app for the login flow");
+    options.addOption(null, "host", true, "Sets a host to use besides localhost");
     options.addOption(OptionBuilder.withArgName("query parameter")
         .withLongOpt("param")
         .hasArg()
@@ -107,6 +109,7 @@ public class LoginOptions extends CommonOptions {
     buzz = line.hasOption("buzz");
     latitude = line.hasOption("latitude");
     demo = line.hasOption("demo");
+    host = line.getOptionValue("host", "localhost");
 
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
@@ -191,5 +194,9 @@ public class LoginOptions extends CommonOptions {
 
   public List<Parameter> getParameters() {
     return parameters;
+  }
+
+  public String getHost() {
+    return host;
   }
 }

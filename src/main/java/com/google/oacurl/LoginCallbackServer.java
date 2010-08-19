@@ -56,6 +56,7 @@ public class LoginCallbackServer {
   private final LoginOptions options;
 
   private int port;
+  private String host;
   private Server server;
 
   private TokenStatus tokenStatus = TokenStatus.MISSING;
@@ -74,10 +75,11 @@ public class LoginCallbackServer {
 
     try {
       port = getUnusedPort();
+      host = options.getHost();
       server = new Server(port);
 
       for (Connector c : server.getConnectors()) {
-        c.setHost("localhost");
+        c.setHost(host);
       }
 
       server.addHandler(new CallbackHandler());
@@ -109,7 +111,7 @@ public class LoginCallbackServer {
       throw new IllegalStateException("Server is not yet started");
     }
 
-    return "http://localhost:" + port + DEMO_PATH;
+    return "http://" + host + ":" + port + DEMO_PATH;
   }
  
   public String getCallbackUrl() {
@@ -117,7 +119,7 @@ public class LoginCallbackServer {
       throw new IllegalStateException("Server is not yet started");
     }
 
-    return "http://localhost:" + port + CALLBACK_PATH;
+    return "http://" + host + ":" + port + CALLBACK_PATH;
   }
 
   private static int getUnusedPort() throws IOException {
@@ -177,8 +179,7 @@ public class LoginCallbackServer {
       response.flushBuffer();
       ((Request) request).setHandled(true);
 
-      String requestToken = request.getParameter(OAuth.OAUTH_TOKEN);
-
+      String requestTokenName = OAuth.OAUTH_TOKEN;
       String verifierName;
       switch (options.getVersion()) {
       case V1:
@@ -191,6 +192,7 @@ public class LoginCallbackServer {
         throw new AssertionError("Unknown version: " + options.getVersion());
       }
 
+      String requestToken = request.getParameter(requestTokenName);
       String verifier = request.getParameter(verifierName);
 
       synchronized (verifierMap) {
