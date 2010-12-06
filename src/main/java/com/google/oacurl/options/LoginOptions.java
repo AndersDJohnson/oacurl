@@ -37,6 +37,7 @@ public class LoginOptions extends CommonOptions {
   static {
     SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
     SCOPE_MAP.put("BUZZ_READONLY", "https://www.googleapis.com/auth/buzz.readonly");
+    SCOPE_MAP.put("BLOGGER", "http://www.blogger.com/feeds/");
     SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude");
     SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
   }
@@ -50,6 +51,7 @@ public class LoginOptions extends CommonOptions {
   private boolean nobrowser;
   private boolean noserver;
   private boolean buzz;
+  private boolean blogger;
   private boolean latitude;
   private boolean demo;
   private List<OAuth.Parameter> parameters;
@@ -57,6 +59,7 @@ public class LoginOptions extends CommonOptions {
   @SuppressWarnings("static-access")
   public LoginOptions() {
     options.addOption(null, "buzz", false, "Use defaults for Buzz");
+    options.addOption(null, "blogger", false, "Use defaults for Blogger");
     options.addOption(null, "latitude", false, "Use defaults for Latitude");
     options.addOption("p", "service-provider", true,
         "properties file with service provider URLs (or GOOGLE, YAHOO, TWITTER, etc.)");
@@ -102,6 +105,7 @@ public class LoginOptions extends CommonOptions {
     noserver = line.hasOption("noserver");
     nobrowser = line.hasOption("nobrowser");
     buzz = line.hasOption("buzz");
+    blogger = line.hasOption("blogger");
     latitude = line.hasOption("latitude");
     demo = line.hasOption("demo");
 
@@ -121,6 +125,8 @@ public class LoginOptions extends CommonOptions {
       scope = scopeBuilder.toString();
     } else if (isBuzz()) {
       scope = SCOPE_MAP.get("BUZZ");
+    } else if (isBlogger()) {
+      scope = SCOPE_MAP.get("BLOGGER");
     } else if (isLatitude()) {
       scope = SCOPE_MAP.get("LATITUDE");
     }
@@ -170,6 +176,10 @@ public class LoginOptions extends CommonOptions {
 
   public boolean isBuzz() {
     return buzz;
+  }
+
+  public boolean isBlogger() {
+    return blogger;
   }
  
   public boolean isLatitude() {
