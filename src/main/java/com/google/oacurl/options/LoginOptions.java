@@ -40,6 +40,7 @@ public class LoginOptions extends CommonOptions {
     SCOPE_MAP.put("BLOGGER", "http://www.blogger.com/feeds/");
     SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude");
     SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
+    SCOPE_MAP.put("PHOTOS", "https://www.googleapis.com/auth/photos");
   }
 
   private String consumerFileName;
@@ -124,7 +125,11 @@ public class LoginOptions extends CommonOptions {
 
       scope = scopeBuilder.toString();
     } else if (isBuzz()) {
-      scope = SCOPE_MAP.get("BUZZ");
+      StringBuilder scopeBuilder = new StringBuilder();
+      scopeBuilder.append(SCOPE_MAP.get("BUZZ"));
+      scopeBuilder.append(" ");
+      scopeBuilder.append(SCOPE_MAP.get("PHOTOS"));
+      scope = scopeBuilder.toString();
     } else if (isBlogger()) {
       scope = SCOPE_MAP.get("BLOGGER");
     } else if (isLatitude()) {
