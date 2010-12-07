@@ -23,7 +23,7 @@
 
   <scm>
     <connection>scm:hg:https://oacurl.googlecode.com/hg/</connection>
-    <developerConnection>scm:hg:https://oacurl.googlecode.com/hg/</developerConnection>
+    <developerConnection>scm:hg:file://${basedir}</developerConnection>
     <url>https://oacurl.googlecode.com/hg/</url>
   </scm>
 
