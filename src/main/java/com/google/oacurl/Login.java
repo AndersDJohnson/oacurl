@@ -99,6 +99,8 @@ public class Login {
     if (serviceProviderFileName == null) {
       if (options.isBuzz()) {
         serviceProviderFileName = "BUZZ";
+      } else if (options.isBlogger()) {
+        serviceProviderFileName = "BLOGGER";
       } else if (options.isLatitude()) {
         serviceProviderFileName = "LATITUDE";
       } else {
