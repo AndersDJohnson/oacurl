@@ -123,6 +123,9 @@ public class LoginOptions extends CommonOptions {
 
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
+      // Google separates scopes with spaces, Windows Live with commas. Since
+      // WL scopes are already short, we use space as the separate in order to
+      // support the SCOPE_MAP expansion of Google scope URLs.
       for (String oneScope : line.getOptionValue("scope").split(" ")) {
         if (SCOPE_MAP.containsKey(oneScope)) {
           oneScope = SCOPE_MAP.get(oneScope);

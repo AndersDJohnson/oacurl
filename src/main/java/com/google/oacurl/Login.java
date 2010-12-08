@@ -151,7 +151,7 @@ public class Login {
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
         }
-  
+
         if (!options.isNoServer()) {
           callbackServer.setAuthorizationUrl(authorizationUrl);
         }
@@ -204,7 +204,7 @@ public class Login {
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
         }
-        
+
         if (success) {
           if (callbackServer != null) {
             callbackServer.setTokenStatus(TokenStatus.VALID);
@@ -239,12 +239,12 @@ public class Login {
         OAuth.OAUTH_TOKEN, accessor.requestToken,
         OAuth.OAUTH_VERIFIER, verifier);
     logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
- 
+
     try {
       OAuthMessage accessTokenResponse = client.getAccessToken(accessor, null, accessTokenParams);
       logger.log(Level.INFO, "Access token received: " + accessTokenResponse.getParameters());
       logger.log(Level.FINE, accessTokenResponse.getDump().get(HttpMessage.RESPONSE).toString());
-  
+
       success = true;
     } catch (OAuthProblemException e) {
       if (e.getHttpStatusCode() == 400) {
@@ -262,7 +262,7 @@ public class Login {
     OAuthConsumer consumer = accessor.consumer;
 
     // HACK(phopkins): The callback needs to be exactly the same, so put in
-    // the version if it that was made in #getWrapAuthorizationUrl
+    // the "requestToken" originally generated in #getWrapAuthorizationUrl
     if (callbackUrl != null) {
       callbackUrl = OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken);
     } else {
@@ -276,7 +276,7 @@ public class Login {
         "wrap_verification_code", verifier);
 
     logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
-    
+
     String requestString = OAuth.formEncode(accessTokenParams);
     byte[] requestBytes = requestString.getBytes("UTF-8");
     InputStream requestStream = new ByteArrayInputStream(requestBytes);
@@ -286,7 +286,7 @@ public class Login {
     HttpMessage request = new HttpMessage("POST", new URL(url), requestStream);
     request.headers.add(new Parameter("Content-Type", "application/x-www-form-urlencoded"));
     request.headers.add(new Parameter("Content-Length", "" + requestString.length()));
-    
+
     HttpResponseMessage response = client.getHttpClient().execute(request,
         client.getHttpParameters());
     InputStream bodyStream = response.getBody();
@@ -369,6 +369,10 @@ public class Login {
       LoginOptions options, String callbackUrl) throws IOException {
     OAuthConsumer consumer = accessor.consumer;
 
+    // This isn't used for anything fancy or cryptographic. Instead it's a
+    // demonstration of best practice that the callback URL for OAuth-WRAP
+    // should be unique for the request. Basically, XSRF protection.
+    // We just use requestToken because it's handy and not use by OAuth-WRAP.
     String requestToken = Long.toHexString(new Random().nextLong());
 
     accessor.requestToken = requestToken;
@@ -388,7 +392,6 @@ public class Login {
     return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
         authParams);
   }
-
 
   private static void launchBrowser(LoginOptions options,
       String authorizationUrl) {
