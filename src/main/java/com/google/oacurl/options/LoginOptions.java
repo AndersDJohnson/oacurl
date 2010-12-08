@@ -52,9 +52,11 @@ public class LoginOptions extends CommonOptions {
   private boolean buzz;
   private boolean latitude;
   private boolean demo;
+  private boolean wirelog;
   private List<OAuth.Parameter> parameters;
   private OAuthVersion version;
   private String host;
+  private String callback;
 
   @SuppressWarnings("static-access")
   public LoginOptions() {
@@ -65,9 +67,8 @@ public class LoginOptions extends CommonOptions {
     options.addOption("c", "consumer", true, "properties file with consumer key and secret");
     options.addOption(OptionBuilder.withArgName("scope list")
         .withLongOpt("scope")
-        .hasArgs()
-        .withDescription("Scopes (or BUZZ, BUZZ_READONLY, etc.)")
-        .withValueSeparator(',').create("s"));
+        .hasArg()
+        .withDescription("Scopes (or BUZZ, BUZZ_READONLY, etc.)").create("s"));
     options.addOption("b", "browser", true, "Path to a browser to exec");
     options.addOption(null, "nobrowser", false, "Don't use a browser at all, write URL to stdout");
     options.addOption(null, "noserver", false, "Don't start the server, get token from stdin");
@@ -76,6 +77,8 @@ public class LoginOptions extends CommonOptions {
     options.addOption(null, "icon-url", true, "URL to an app icon to show on Buzz page");
     options.addOption(null, "demo", false, "Loads a demo web-app for the login flow");
     options.addOption(null, "host", true, "Sets a host to use besides localhost");
+    options.addOption(null, "callback", true, "Use a callback other than the auto-generated localhost one");
+    options.addOption(null, "wirelog", false, "Shows HTTP traffic for login requests");
     options.addOption(OptionBuilder.withArgName("query parameter")
         .withLongOpt("param")
         .hasArg()
@@ -109,11 +112,13 @@ public class LoginOptions extends CommonOptions {
     buzz = line.hasOption("buzz");
     latitude = line.hasOption("latitude");
     demo = line.hasOption("demo");
+    wirelog = line.hasOption("wirelog");
     host = line.getOptionValue("host", "localhost");
+    callback = line.getOptionValue("callback", null);
 
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
-      for (String oneScope : line.getOptionValues("scope")) {
+      for (String oneScope : line.getOptionValue("scope").split(" ")) {
         if (SCOPE_MAP.containsKey(oneScope)) {
           oneScope = SCOPE_MAP.get(oneScope);
         }
@@ -198,5 +203,13 @@ public class LoginOptions extends CommonOptions {
 
   public String getHost() {
     return host;
+  }
+
+  public String getCallback() {
+    return callback;
+  }
+
+  public boolean isWirelogVerbose() {
+    return wirelog;
   }
 }

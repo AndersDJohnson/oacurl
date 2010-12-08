@@ -87,7 +87,7 @@ public class Login {
     }
 
     LoggingConfig.init(options.isVerbose());
-    if (options.isVerbose()) {
+    if (options.isWirelogVerbose()) {
       LoggingConfig.enableWireLog();
     }
 
@@ -123,14 +123,18 @@ public class Login {
     boolean launchedBrowser = false;
 
     try {
-      String callbackUrl;
-      if (options.isNoServer()) {
-        callbackUrl = null;
-      } else {
+      if (!options.isNoServer()) {
         callbackServer = new LoginCallbackServer(options);
-        callbackServer.start();
+        callbackServer.start();        
+      }
 
+      String callbackUrl;
+      if (options.getCallback() != null) {
+        callbackUrl = options.getCallback();
+      } else if (callbackServer != null) {
         callbackUrl = callbackServer.getCallbackUrl();
+      } else {
+        callbackUrl = null;
       }
 
       do {
@@ -293,15 +297,20 @@ public class Login {
       resp.append(line);
     }
 
-    logger.log(Level.INFO, "Access token response:" + resp);
-
     List<Parameter> params = OAuth.decodeForm(resp.toString());
+
+    List<String> logList = new ArrayList<String>();
+
     for (Parameter param : params) {
+      logList.add(param.getKey() + "=" + param.getValue());
+
       if (param.getKey().equals("wrap_access_token")) {
         accessor.accessToken = param.getValue();
         accessor.tokenSecret = "";
       }
     }
+
+    logger.log(Level.INFO, "Access token response params: " + logList);
 
     return accessor.accessToken != null;
   }
