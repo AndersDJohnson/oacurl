@@ -175,10 +175,6 @@ public class LoginCallbackServer {
         return;
       }
 
-      writeLandingHtml(response);
-      response.flushBuffer();
-      ((Request) request).setHandled(true);
-
       String requestTokenName = OAuth.OAUTH_TOKEN;
       String verifierName;
       switch (options.getVersion()) {
@@ -195,10 +191,19 @@ public class LoginCallbackServer {
       String requestToken = request.getParameter(requestTokenName);
       String verifier = request.getParameter(verifierName);
 
-      synchronized (verifierMap) {
-        verifierMap.put(requestToken, verifier);
-        verifierMap.notifyAll();
+      if (verifier != null) {
+        writeLandingHtml(response);
+  
+        synchronized (verifierMap) {
+          verifierMap.put(requestToken, verifier);
+          verifierMap.notifyAll();
+        }
+      } else {
+        writeErrorHtml(request, response);
       }
+
+      response.flushBuffer();
+      ((Request) request).setHandled(true);
     }
 
     private void writeLandingHtml(HttpServletResponse response) throws IOException {
@@ -221,7 +226,34 @@ public class LoginCallbackServer {
       doc.println("</HTML>");
       doc.flush();
     }
-  }
+
+    private void writeErrorHtml(HttpServletRequest request,
+        HttpServletResponse response) throws IOException {
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.setContentType("text/html");
+
+      PrintWriter doc = response.getWriter();
+      doc.println("<html>");
+      doc.println("<head><title>OAuth Authentication Token Not Recieved</title></head>");
+      doc.println("<body>");
+      doc.println("Did not receive verifier token. One of these parameters might be interesting:");
+      doc.println("<dl>");
+
+      @SuppressWarnings("unchecked")
+      Map<String, String[]> parameterMap = request.getParameterMap();
+      for (Map.Entry<String, String[]> param : parameterMap.entrySet()) {
+        doc.println("<dt>" + param.getKey() + "</dt>");
+        for (String value : param.getValue()) {
+          doc.println("<dd>" + value + "</dd>");
+        }
+      }
+
+      doc.println("</dl>");
+      doc.println("</body>");
+      doc.println("</HTML>");
+      doc.flush();
+    }
+}
 
   /**
    * Jetty handler that takes the verifier token passed over from the OAuth

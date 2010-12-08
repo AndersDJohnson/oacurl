@@ -20,12 +20,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.logging.Logger;
 
 import net.oauth.OAuth;
+import net.oauth.OAuth.Parameter;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthException;
@@ -33,12 +36,13 @@ import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
 import net.oauth.ParameterStyle;
-import net.oauth.OAuth.Parameter;
 import net.oauth.client.OAuthClient;
 import net.oauth.client.OAuthResponseMessage;
 import net.oauth.client.httpclient4.HttpClient4;
 import net.oauth.client.httpclient4.HttpClientPool;
 import net.oauth.http.HttpMessage;
+import net.oauth.http.HttpMessageDecoder;
+import net.oauth.http.HttpResponseMessage;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
@@ -151,16 +155,29 @@ public class Fetch {
       List<Parameter> headers = options.getHeaders();
       addHeadersToRequest(request, headers);
 
-      OAuthResponseMessage response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
+      HttpResponseMessage httpResponse;
+      if (version == OAuthVersion.V1) {
+        OAuthResponseMessage response;
+        response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
+        httpResponse = response.getHttpResponse();
+      } else {
+        HttpMessage httpRequest = new HttpMessage(
+            request.method, new URL(request.URL), request.getBodyAsStream());
+        httpRequest.headers.addAll(request.getHeaders());
+        httpResponse = client.getHttpClient().execute(httpRequest, client.getHttpParameters());
+        httpResponse = HttpMessageDecoder.decode(httpResponse);
+      }
 
       System.err.flush();
 
       if (options.isInclude()) {
-        System.out.print(response.getDump().get(HttpMessage.RESPONSE));
+        Map<String, Object> dump = new HashMap<String, Object>();
+        httpResponse.dump(dump);
+        System.out.print(dump.get(HttpMessage.RESPONSE));
       }
 
       // Dump the bytes in the response's encoding.
-      InputStream bodyStream = response.getBodyAsStream();
+      InputStream bodyStream = httpResponse.getBody();
       byte[] buf = new byte[1024];
       int count;
       while ((count = bodyStream.read(buf)) > -1) {
@@ -187,10 +204,6 @@ public class Fetch {
       }
     }
 
-    if (version == OAuthVersion.WRAP) {
-      url = OAuth.addParameters(url, "wrap_access_token", accessor.accessToken);
-    }
-
     OAuthMessage message = new OAuthMessage(methodStr, url, null, bodyStream);
 
     // By not calling #addRequiredParameters, we prevent all the OAuth 1.0
@@ -198,6 +211,9 @@ public class Fetch {
     // code around HttpMessages and such for OAuth-WRAP.
     if (version == OAuthVersion.V1) {
       message.addRequiredParameters(accessor);
+    } else {
+      message.getHeaders().add(new OAuth.Parameter(
+          "Authorization", "WRAP access_token=" + accessor.accessToken));
     }
 
     return message;
