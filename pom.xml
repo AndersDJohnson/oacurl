@@ -3,7 +3,7 @@
   <groupId>com.google.oacurl</groupId>
   <artifactId>oacurl</artifactId>
   <name>OACurl</name>
-  <version>1.1.1-SNAPSHOT</version>
+  <version>1.2.1-SNAPSHOT</version>
   <description>OAuth-enabled HTTP tool written in Java</description>
   <url>http://code.google.com/p/oacurl/</url>
 
@@ -23,7 +23,7 @@
 
   <scm>
     <connection>scm:hg:https://oacurl.googlecode.com/hg/</connection>
-    <developerConnection>scm:hg:https://oacurl.googlecode.com/hg/</developerConnection>
+    <developerConnection>scm:hg:file://${basedir}</developerConnection>
     <url>https://oacurl.googlecode.com/hg/</url>
   </scm>
 
