@@ -101,6 +101,8 @@ public class Login {
         serviceProviderFileName = "BUZZ";
       } else if (options.isBlogger()) {
         serviceProviderFileName = "BLOGGER";
+      } else if (options.isWave()) {
+        serviceProviderFileName = "WAVE";
       } else if (options.isLatitude()) {
         serviceProviderFileName = "LATITUDE";
       } else {
