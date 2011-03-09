@@ -64,7 +64,7 @@ OACURL_JARS=`ls $OACURL_HOME/target/*.jar | awk '{ printf ":%s", $0 }'`
 LOCALCLASSPATH=${LOCALCLASSPATH}${OACURL_JARS}
 
 
-args=($@);
+args=("$@");
 
 # run command
 case "$1" in
