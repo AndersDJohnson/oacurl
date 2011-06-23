@@ -27,6 +27,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import com.google.oacurl.util.*;
 import net.oauth.OAuth;
 import net.oauth.OAuth.Parameter;
 import net.oauth.OAuthAccessor;
@@ -62,10 +63,8 @@ import com.google.oacurl.dao.ServiceProviderDao;
 import com.google.oacurl.options.FetchOptions;
 import com.google.oacurl.options.FetchOptions.Method;
 import com.google.oacurl.options.OAuthVersion;
-import com.google.oacurl.util.LoggingConfig;
-import com.google.oacurl.util.MultipartRelatedInputStream;
-import com.google.oacurl.util.OAuthUtil;
-import com.google.oacurl.util.PropertiesProvider;
+
+import javax.xml.bind.annotation.XmlElement;
 
 /**
  * Main class for curl-like interactions authenticated by OAuth.
@@ -89,12 +88,12 @@ public class Fetch {
 
     if (options.isHelp()) {
       new HelpFormatter().printHelp("url", options.getOptions());
-      System.exit(0);
+      return;
     }
 
     if (args.length != 1) {
       new HelpFormatter().printHelp("url", options.getOptions());
-      System.exit(-1);
+      return;
     }
 
     if (options.isInsecure()) {
@@ -125,6 +124,7 @@ public class Fetch {
     OAuthConsumer consumer = consumerDao.loadConsumer(loginProperties, serviceProvider);
     OAuthAccessor accessor = accessorDao.loadAccessor(loginProperties, consumer);
 
+    // Default to OAuth v1 if no option is set
     OAuthVersion version = (loginProperties.containsKey("oauthVersion")) ?
         OAuthVersion.valueOf(loginProperties.getProperty("oauthVersion")) :
           OAuthVersion.V1;
@@ -156,16 +156,23 @@ public class Fetch {
       addHeadersToRequest(request, headers);
 
       HttpResponseMessage httpResponse;
-      if (version == OAuthVersion.V1) {
-        OAuthResponseMessage response;
-        response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
-        httpResponse = response.getHttpResponse();
-      } else {
-        HttpMessage httpRequest = new HttpMessage(
-            request.method, new URL(request.URL), request.getBodyAsStream());
-        httpRequest.headers.addAll(request.getHeaders());
-        httpResponse = client.getHttpClient().execute(httpRequest, client.getHttpParameters());
-        httpResponse = HttpMessageDecoder.decode(httpResponse);
+      switch(version) {
+        case V1:
+          OAuthResponseMessage response;
+          response = client.access(request, ParameterStyle.AUTHORIZATION_HEADER);
+          httpResponse = response.getHttpResponse();
+          break;
+        case V2:
+        case WRAP:
+          //TODO: We're using this as a simple http client for V2 and Wrap, so go ahead and use a standard HTTP client
+          HttpMessage httpRequest = new HttpMessage(
+              request.method, new URL(request.URL), request.getBodyAsStream());
+          httpRequest.headers.addAll(request.getHeaders());
+          httpResponse = client.getHttpClient().execute(httpRequest, client.getHttpParameters());
+          httpResponse = HttpMessageDecoder.decode(httpResponse);
+          break;
+        default:
+          throw new AssertionError("Unknown version: " + version);
       }
 
       System.err.flush();
@@ -209,13 +216,21 @@ public class Fetch {
     // By not calling #addRequiredParameters, we prevent all the OAuth 1.0
     // signing bits and adding of headers, while retaining all of our existing
     // code around HttpMessages and such for OAuth-WRAP.
-    if (version == OAuthVersion.V1) {
-      message.addRequiredParameters(accessor);
-    } else {
-      message.getHeaders().add(new OAuth.Parameter(
-          "Authorization", "WRAP access_token=" + accessor.accessToken));
+    switch(version) {
+      case V1:
+        message.addRequiredParameters(accessor);
+        break;
+      case V2:
+        message.getHeaders().add(new OAuth.Parameter(
+            "Authorization", "OAuth " + accessor.accessToken));
+        break;
+      case WRAP:
+        message.getHeaders().add(new OAuth.Parameter(
+            "Authorization", "WRAP access_token=" + accessor.accessToken));
+        break;
+      default:
+        throw new AssertionError("Unknown version: " + version);
     }
-
     return message;
   }
 
