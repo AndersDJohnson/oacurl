@@ -9,5 +9,6 @@ package com.google.oacurl.options;
  */
 public enum OAuthVersion {
   V1,
-  WRAP
+  WRAP,
+  V2
 }

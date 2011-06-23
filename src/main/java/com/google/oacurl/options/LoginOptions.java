@@ -28,11 +28,12 @@ import org.apache.commons.cli.ParseException;
 
 
 /**
- * Subclass for {@link Options}s that are used for the login step.
+ * Subclass for {@link CommonOptions}s that are used for the login step.
  *
  * @author phopkins@google.com
  */
 public class LoginOptions extends CommonOptions {
+  //TODO: Extract these in to service specific default configuration
   private static final Map<String, String> SCOPE_MAP = new HashMap<String, String>();
   static {
     SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
@@ -92,6 +93,7 @@ public class LoginOptions extends CommonOptions {
         .withDescription("Custom parameter to add to the authorization URL").create("P"));
     options.addOption("1", "oauth1.0a", false, "Use OAuth 1.0a (default)");
     options.addOption(null, "wrap", false, "Use OAuth-WRAP");
+    options.addOption("2", "oauth2", false, "Use OAuth 2");
   }
 
   @Override
@@ -164,7 +166,13 @@ public class LoginOptions extends CommonOptions {
       }
     }
 
-    version = line.hasOption("wrap") ? OAuthVersion.WRAP : OAuthVersion.V1;
+    if(line.hasOption("wrap")) {
+      version = OAuthVersion.WRAP;
+    } else if(line.hasOption("oauth2")) {
+      version = OAuthVersion.V2;
+    } else {
+      version = OAuthVersion.V1;
+    }
 
     return line;
   }

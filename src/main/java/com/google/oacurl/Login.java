@@ -31,6 +31,13 @@ import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.api.client.auth.oauth2.draft10.AccessTokenResponse;
+import com.google.api.client.auth.oauth2.draft10.AuthorizationRequestUrl;
+import com.google.api.client.googleapis.auth.oauth2.draft10.GoogleAccessTokenRequest;
+import com.google.api.client.googleapis.auth.oauth2.draft10.GoogleAuthorizationRequestUrl;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.oacurl.options.OAuthVersion;
 import net.oauth.OAuth;
 import net.oauth.OAuth.Parameter;
 import net.oauth.OAuthAccessor;
@@ -79,7 +86,7 @@ public class Login {
 
     if (options.isHelp()) {
       new HelpFormatter().printHelp(" ", options.getOptions());
-      System.exit(0);
+      return;
     }
 
     if (options.isInsecure()) {
@@ -113,9 +120,10 @@ public class Login {
     // We have a wee library of service provider properties files bundled into
     // the resources, so we set up the PropertiesProvider to search for them
     // if the file cannot be found.
+    Properties serviceProperties = new PropertiesProvider(serviceProviderFileName,
+            ServiceProviderDao.class, "services/").get();
     OAuthServiceProvider serviceProvider = serviceProviderDao.loadServiceProvider(
-        new PropertiesProvider(serviceProviderFileName,
-            ServiceProviderDao.class, "services/").get());
+            serviceProperties);
     OAuthConsumer consumer = consumerDao.loadConsumer(
         new PropertiesProvider(options.getConsumerFileName()).get(), serviceProvider);
     OAuthAccessor accessor = accessorDao.newAccessor(consumer);
@@ -138,7 +146,12 @@ public class Login {
       } else if (callbackServer != null) {
         callbackUrl = callbackServer.getCallbackUrl();
       } else {
-        callbackUrl = null;
+        //TODO: Use a different client ID for OAuth2 when noserver is set
+        if(options.getVersion() == OAuthVersion.V2) {
+          callbackUrl = "urn:ietf:wg:oauth:2.0:oob";
+        } else {
+          callbackUrl = null;
+        }
       }
 
       do {
@@ -149,6 +162,9 @@ public class Login {
           break;
         case WRAP:
           authorizationUrl = getWrapAuthorizationUrl(accessor, options, callbackUrl);
+          break;
+        case V2:
+          authorizationUrl = getV2AuthorizationUrl(serviceProperties, options, callbackUrl);
           break;
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
@@ -202,6 +218,9 @@ public class Login {
           break;
         case WRAP:
           success = fetchWrapAccessToken(accessor, client, callbackUrl, verifier);
+          break;
+        case V2:
+          success = fetchV2AccessToken(serviceProperties, accessor, callbackUrl, verifier);
           break;
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
@@ -319,6 +338,30 @@ public class Login {
     return accessor.accessToken != null;
   }
 
+  private static boolean fetchV2AccessToken(Properties serviceProperties, OAuthAccessor accessor, String callbackUrl, String verifier) throws IOException {
+    boolean success = false;
+
+    // Exchange code for an access token
+    AccessTokenResponse accessTokenResponse = new GoogleAccessTokenRequest.GoogleAuthorizationCodeGrant(
+            new NetHttpTransport(),
+            new GsonFactory(),
+            serviceProperties.getProperty("V2.defaultClientId"),
+            serviceProperties.getProperty("V2.defaultClientSecret"),
+            verifier,
+            callbackUrl
+    ).execute();
+
+    if(accessTokenResponse.accessToken != null) {
+      success = true;
+    }
+
+    accessor.tokenSecret = "";
+    accessor.accessToken = accessTokenResponse.accessToken;
+
+    return success;
+  }
+
+
   private static String getV1AuthorizationUrl(OAuthClient client,
       OAuthAccessor accessor, LoginOptions options, String callbackUrl)
       throws IOException, OAuthException, URISyntaxException {
@@ -393,6 +436,20 @@ public class Login {
 
     return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
         authParams);
+  }
+
+  private static String getV2AuthorizationUrl(Properties serviceProperties, LoginOptions options, String callbackUrl) throws IOException {
+    // build the authorization URL
+    AuthorizationRequestUrl authorizeUrl = new GoogleAuthorizationRequestUrl(
+            serviceProperties.getProperty("V2.defaultClientId"),
+            callbackUrl,
+            options.getScope()
+    );
+    authorizeUrl.redirectUri = callbackUrl;
+    authorizeUrl.scope = options.getScope();
+    String authorizationUrl = authorizeUrl.build();
+
+    return authorizationUrl;
   }
 
   private static void launchBrowser(LoginOptions options,

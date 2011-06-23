@@ -181,6 +181,9 @@ public class LoginCallbackServer {
       case V1:
         verifierName = OAuth.OAUTH_VERIFIER;
         break;
+      case V2:
+        verifierName = "code";
+        break;
       case WRAP:
         verifierName = "wrap_verification_code";
         break;
