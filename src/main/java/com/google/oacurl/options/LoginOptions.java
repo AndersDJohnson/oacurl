@@ -42,6 +42,7 @@ public class LoginOptions extends CommonOptions {
     SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude");
     SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
     SCOPE_MAP.put("PHOTOS", "https://www.googleapis.com/auth/photos");
+    SCOPE_MAP.put("CONTACTS", "https://www.google.com/m8/feeds/");
   }
 
   private String consumerFileName;
@@ -91,6 +92,7 @@ public class LoginOptions extends CommonOptions {
         .hasArg()
         .withDescription("Custom parameter to add to the authorization URL").create("P"));
     options.addOption("1", "oauth1.0a", false, "Use OAuth 1.0a (default)");
+    options.addOption("2", "oauth2", false, "Use OAuth 2");
     options.addOption(null, "wrap", false, "Use OAuth-WRAP");
   }
 
@@ -164,7 +166,13 @@ public class LoginOptions extends CommonOptions {
       }
     }
 
-    version = line.hasOption("wrap") ? OAuthVersion.WRAP : OAuthVersion.V1;
+    if (line.hasOption("2")) {
+      version = OAuthVersion.V2;
+    } else if (line.hasOption("wrap")) {
+      version = OAuthVersion.WRAP;
+    } else {
+      version = OAuthVersion.V1;
+    }
 
     return line;
   }

@@ -48,12 +48,15 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.ParseException;
 import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 
 import com.google.oacurl.LoginCallbackServer.TokenStatus;
 import com.google.oacurl.dao.AccessorDao;
 import com.google.oacurl.dao.ConsumerDao;
 import com.google.oacurl.dao.ServiceProviderDao;
 import com.google.oacurl.options.LoginOptions;
+import com.google.oacurl.options.OAuthVersion;
 import com.google.oacurl.util.LoggingConfig;
 import com.google.oacurl.util.OAuthUtil;
 import com.google.oacurl.util.PropertiesProvider;
@@ -147,6 +150,9 @@ public class Login {
         case V1:
           authorizationUrl = getV1AuthorizationUrl(client, accessor, options, callbackUrl);
           break;
+        case V2:
+          authorizationUrl = getV2AuthorizationUrl(accessor, options, callbackUrl);
+          break;
         case WRAP:
           authorizationUrl = getWrapAuthorizationUrl(accessor, options, callbackUrl);
           break;
@@ -200,8 +206,9 @@ public class Login {
         case V1:
           success = fetchV1AccessToken(accessor, client, verifier);
           break;
+        case V2:
         case WRAP:
-          success = fetchWrapAccessToken(accessor, client, callbackUrl, verifier);
+          success = fetchV2AccessToken(accessor, client, callbackUrl, verifier, options.getVersion());
           break;
         default:
           throw new AssertionError("Unknown version: " + options.getVersion());
@@ -259,24 +266,32 @@ public class Login {
     return success;
   }
 
-  private static boolean fetchWrapAccessToken(OAuthAccessor accessor, OAuthClient client,
-      String callbackUrl, String verifier) throws IOException {
+  private static boolean fetchV2AccessToken(OAuthAccessor accessor, OAuthClient client,
+      String callbackUrl, String verifier, OAuthVersion version) throws IOException {
     OAuthConsumer consumer = accessor.consumer;
 
-    // HACK(phopkins): The callback needs to be exactly the same, so put in
-    // the "requestToken" originally generated in #getWrapAuthorizationUrl
+    boolean wrap = version == OAuthVersion.WRAP;
+    
     if (callbackUrl != null) {
-      callbackUrl = OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken);
+      // HACK(phopkins): The callback needs to be exactly the same, so put in
+      // the "requestToken" originally generated in #getWrapAuthorizationUrl
+      if (wrap) {
+        callbackUrl = OAuth.addParameters(callbackUrl, OAuth.OAUTH_TOKEN, accessor.requestToken);
+      }
     } else {
-      callbackUrl = "";
+      callbackUrl = wrap ? "" : "urn:ietf:wg:oauth:2.0:oob";
     }
 
     List<OAuth.Parameter> accessTokenParams = OAuth.newList(
-        "wrap_client_id", consumer.consumerKey,
-        "wrap_client_secret", consumer.consumerSecret,
-        "wrap_callback", callbackUrl,
-        "wrap_verification_code", verifier);
+        wrap ? "wrap_client_id" : "client_id", consumer.consumerKey,
+        wrap ? "wrap_client_secret" : "client_secret", consumer.consumerSecret,
+        wrap ? "wrap_callback" : "redirect_uri", callbackUrl,
+        wrap ? "wrap_verification_code" : "code", verifier);
 
+    if (!wrap) {
+      accessTokenParams.add(new OAuth.Parameter("grant_type", "authorization_code"));
+    }
+    
     logger.log(Level.INFO, "Fetching access token with parameters: " + accessTokenParams);
 
     String requestString = OAuth.formEncode(accessTokenParams);
@@ -294,14 +309,29 @@ public class Login {
     InputStream bodyStream = response.getBody();
     BufferedReader reader = new BufferedReader(new InputStreamReader(bodyStream));
 
-    StringBuilder resp = new StringBuilder();
+    StringBuilder respBuf = new StringBuilder();
 
     String line;
     while ((line = reader.readLine()) != null) {
-      resp.append(line);
+      respBuf.append(line);
     }
 
-    List<Parameter> params = OAuth.decodeForm(resp.toString());
+    String resp = respBuf.toString();
+    
+    switch (version) {
+    case WRAP:
+      parseWrapTokenResponse(resp, accessor);
+      break;
+    case V2:
+      parseV2TokenResponse(resp, accessor);
+      break;
+    }
+    
+    return accessor.accessToken != null;
+  }
+
+  private static void parseWrapTokenResponse(String resp, OAuthAccessor accessor) {
+    List<Parameter> params = OAuth.decodeForm(resp);
 
     List<String> logList = new ArrayList<String>();
 
@@ -315,8 +345,18 @@ public class Login {
     }
 
     logger.log(Level.INFO, "Access token response params: " + logList);
+  }
+  
+  private static void parseV2TokenResponse(String resp, OAuthAccessor accessor) {
+    JSONObject respObj = (JSONObject) JSONValue.parse(resp);
+    
+    String accessToken = (String) respObj.get("access_token");
+    if (accessToken != null) {
+      accessor.accessToken = accessToken;
+      accessor.tokenSecret = "";
+    }
 
-    return accessor.accessToken != null;
+    logger.log(Level.INFO, "Access token response: " + resp);
   }
 
   private static String getV1AuthorizationUrl(OAuthClient client,
@@ -389,6 +429,32 @@ public class Login {
 
     if (options.getScope() != null) {
       authParams.add(new OAuth.Parameter("wrap_scope", options.getScope()));
+    }
+
+    return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
+        authParams);
+  }
+
+  private static String getV2AuthorizationUrl(OAuthAccessor accessor,
+      LoginOptions options, String callbackUrl) throws IOException {
+    OAuthConsumer consumer = accessor.consumer;
+
+    String requestToken = Long.toHexString(new Random().nextLong());
+    accessor.requestToken = requestToken;
+
+    List<Parameter> authParams = new ArrayList<Parameter>();
+    authParams.add(new OAuth.Parameter("client_id", consumer.consumerKey));
+    authParams.add(new OAuth.Parameter("state", requestToken));
+
+    if (callbackUrl == null) {
+      callbackUrl = "urn:ietf:wg:oauth:2.0:oob";
+    }
+    
+    authParams.add(new OAuth.Parameter("redirect_uri", callbackUrl));
+    authParams.add(new OAuth.Parameter("response_type", "code"));
+
+    if (options.getScope() != null) {
+      authParams.add(new OAuth.Parameter("scope", options.getScope()));
     }
 
     return OAuth.addParameters(consumer.serviceProvider.userAuthorizationURL,
