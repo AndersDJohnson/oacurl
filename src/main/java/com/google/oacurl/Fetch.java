@@ -59,6 +59,10 @@ import org.apache.http.protocol.HTTP;
 import com.google.oacurl.dao.AccessorDao;
 import com.google.oacurl.dao.ConsumerDao;
 import com.google.oacurl.dao.ServiceProviderDao;
+import com.google.oacurl.engine.OAuthEngine;
+import com.google.oacurl.engine.V1OAuthEngine;
+import com.google.oacurl.engine.V2OAuthEngine;
+import com.google.oacurl.engine.WrapOAuthEngine;
 import com.google.oacurl.options.FetchOptions;
 import com.google.oacurl.options.FetchOptions.Method;
 import com.google.oacurl.options.OAuthVersion;
@@ -72,8 +76,6 @@ import com.google.oacurl.util.PropertiesProvider;
  * <p>
  * Assumes that the user has run {@link Login} to save the OAuth access
  * token to a local properties file.
- * <p>
- * TODO(phopkins): Make some of this a bit more object-oriented.
  *
  * @author phopkins@google.com
  */
@@ -125,11 +127,26 @@ public class Fetch {
     OAuthConsumer consumer = consumerDao.loadConsumer(loginProperties, serviceProvider);
     OAuthAccessor accessor = accessorDao.loadAccessor(loginProperties, consumer);
 
+    OAuthClient client = new OAuthClient(new HttpClient4(SingleClient.HTTP_CLIENT_POOL));
+
     OAuthVersion version = (loginProperties.containsKey("oauthVersion")) ?
         OAuthVersion.valueOf(loginProperties.getProperty("oauthVersion")) :
           OAuthVersion.V1;
 
-    OAuthClient client = new OAuthClient(new HttpClient4(SingleClient.HTTP_CLIENT_POOL));
+    OAuthEngine engine;
+    switch (version) {
+    case V1:
+      engine = new V1OAuthEngine();
+      break;
+    case V2:
+      engine = new V2OAuthEngine();
+      break;
+    case WRAP:
+      engine = new WrapOAuthEngine();
+      break;
+    default:
+      throw new IllegalArgumentException("Unknown version: " + version);
+    }
 
     try {
       OAuthMessage request;
@@ -146,10 +163,10 @@ public class Fetch {
         } else {
           bodyStream = System.in;
         }
-        request = newRequestMessage(accessor, method, url, bodyStream, version);
+        request = newRequestMessage(accessor, method, url, bodyStream, engine);
         request.getHeaders().add(new OAuth.Parameter("Content-Type", options.getContentType()));
       } else {
-        request = newRequestMessage(accessor, method, url, null, version);
+        request = newRequestMessage(accessor, method, url, null, engine);
       }
 
       List<Parameter> headers = options.getHeaders();
@@ -189,10 +206,11 @@ public class Fetch {
   }
 
   private static OAuthMessage newRequestMessage(OAuthAccessor accessor,
-      Method method, String url, InputStream bodyStream, OAuthVersion version)
+      Method method, String url, InputStream bodyStream, OAuthEngine engine)
       throws OAuthException, IOException, URISyntaxException {
 
-    // Inlined in order to put a conditional on #addRequiredParameters
+    // Inlined from OAuth library so we don't have to call
+    // #addRequiredParameters for V2/WRAP.
     String methodStr = method.toString();
     if (methodStr == null) {
       methodStr = (String) accessor.getProperty("httpMethod");
@@ -205,23 +223,7 @@ public class Fetch {
     }
 
     OAuthMessage message = new OAuthMessage(methodStr, url, null, bodyStream);
-
-    // By not calling #addRequiredParameters, we prevent all the OAuth 1.0
-    // signing bits and adding of headers, while retaining all of our existing
-    // code around HttpMessages and such for OAuth-WRAP / V2.
-    switch (version) {
-    case V1:
-      message.addRequiredParameters(accessor);
-      break;      
-    case V2:
-      message.getHeaders().add(new OAuth.Parameter(
-          "Authorization", "Bearer " + accessor.accessToken));
-      break;
-    case WRAP:
-      message.getHeaders().add(new OAuth.Parameter(
-          "Authorization", "WRAP access_token=" + accessor.accessToken));
-      break;
-    }
+    engine.authMessage(accessor, message);
 
     return message;
   }
