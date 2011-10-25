@@ -38,8 +38,7 @@ public class LoginOptions extends CommonOptions {
     SCOPE_MAP.put("BUZZ", "https://www.googleapis.com/auth/buzz");
     SCOPE_MAP.put("BUZZ_READONLY", "https://www.googleapis.com/auth/buzz.readonly");
     SCOPE_MAP.put("BLOGGER", "http://www.blogger.com/feeds/");
-    SCOPE_MAP.put("WAVE", "http://wave.googleusercontent.com/api/rpc");
-    SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude");
+    SCOPE_MAP.put("LATITUDE", "https://www.googleapis.com/auth/latitude.all.best");
     SCOPE_MAP.put("PICASAWEB", "http://picasaweb.google.com/data/");
     SCOPE_MAP.put("PHOTOS", "https://www.googleapis.com/auth/photos");
     SCOPE_MAP.put("CONTACTS", "https://www.google.com/m8/feeds/");
@@ -55,7 +54,6 @@ public class LoginOptions extends CommonOptions {
   private boolean noserver;
   private boolean buzz;
   private boolean blogger;
-  private boolean wave;
   private boolean latitude;
   private boolean demo;
   private boolean wirelog;
@@ -68,7 +66,6 @@ public class LoginOptions extends CommonOptions {
   public LoginOptions() {
     options.addOption(null, "buzz", false, "Use defaults for Buzz");
     options.addOption(null, "blogger", false, "Use defaults for Blogger");
-    options.addOption(null, "wave", false, "Use defaults for Wave");
     options.addOption(null, "latitude", false, "Use defaults for Latitude");
     options.addOption("p", "service-provider", true,
         "properties file with service provider URLs (or GOOGLE, YAHOO, TWITTER, etc.)");
@@ -120,13 +117,14 @@ public class LoginOptions extends CommonOptions {
     nobrowser = line.hasOption("nobrowser");
     buzz = line.hasOption("buzz");
     blogger = line.hasOption("blogger");
-    wave = line.hasOption("wave");
     latitude = line.hasOption("latitude");
     demo = line.hasOption("demo");
     wirelog = line.hasOption("wirelog");
     host = line.getOptionValue("host", "localhost");
     callback = line.getOptionValue("callback", null);
 
+    version = OAuthVersion.V1;
+    
     if (line.hasOption("scope")) {
       StringBuilder scopeBuilder = new StringBuilder();
       // Google separates scopes with spaces, Windows Live with commas. Since
@@ -152,10 +150,9 @@ public class LoginOptions extends CommonOptions {
       scope = scopeBuilder.toString();
     } else if (isBlogger()) {
       scope = SCOPE_MAP.get("BLOGGER");
-    } else if (isWave()) {
-      scope = SCOPE_MAP.get("WAVE");
     } else if (isLatitude()) {
       scope = SCOPE_MAP.get("LATITUDE");
+      version = OAuthVersion.V2;
     }
 
     String[] parameterArray = line.getOptionValues("param");
@@ -170,7 +167,7 @@ public class LoginOptions extends CommonOptions {
       version = OAuthVersion.V2;
     } else if (line.hasOption("wrap")) {
       version = OAuthVersion.WRAP;
-    } else {
+    } else if (line.hasOption("1")) {
       version = OAuthVersion.V1;
     }
 
@@ -215,10 +212,6 @@ public class LoginOptions extends CommonOptions {
 
   public boolean isBlogger() {
     return blogger;
-  }
-
-  public boolean isWave() {
-    return wave;
   }
 
   public boolean isLatitude() {
