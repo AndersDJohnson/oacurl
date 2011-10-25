@@ -208,12 +208,19 @@ public class Fetch {
 
     // By not calling #addRequiredParameters, we prevent all the OAuth 1.0
     // signing bits and adding of headers, while retaining all of our existing
-    // code around HttpMessages and such for OAuth-WRAP.
-    if (version == OAuthVersion.V1) {
+    // code around HttpMessages and such for OAuth-WRAP / V2.
+    switch (version) {
+    case V1:
       message.addRequiredParameters(accessor);
-    } else {
+      break;      
+    case V2:
+      message.getHeaders().add(new OAuth.Parameter(
+          "Authorization", "Bearer " + accessor.accessToken));
+      break;
+    case WRAP:
       message.getHeaders().add(new OAuth.Parameter(
           "Authorization", "WRAP access_token=" + accessor.accessToken));
+      break;
     }
 
     return message;

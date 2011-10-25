@@ -175,21 +175,27 @@ public class LoginCallbackServer {
         return;
       }
 
-      String requestTokenName = OAuth.OAUTH_TOKEN;
+      String requestTokenName;
       String verifierName;
       switch (options.getVersion()) {
       case V1:
         verifierName = OAuth.OAUTH_VERIFIER;
+        requestTokenName = OAuth.OAUTH_TOKEN;
+        break;
+      case V2:
+        verifierName = "code";
+        requestTokenName = "state";
         break;
       case WRAP:
         verifierName = "wrap_verification_code";
+        requestTokenName = OAuth.OAUTH_TOKEN;
         break;
       default:
         throw new AssertionError("Unknown version: " + options.getVersion());
       }
 
-      String requestToken = request.getParameter(requestTokenName);
       String verifier = request.getParameter(verifierName);
+      String requestToken = request.getParameter(requestTokenName);
 
       if (verifier != null) {
         writeLandingHtml(response);
