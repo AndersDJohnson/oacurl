@@ -45,6 +45,7 @@ import com.google.oacurl.engine.V1OAuthEngine;
 import com.google.oacurl.engine.V2OAuthEngine;
 import com.google.oacurl.engine.WrapOAuthEngine;
 import com.google.oacurl.options.LoginOptions;
+import com.google.oacurl.options.OAuthVersion;
 import com.google.oacurl.util.LoggingConfig;
 import com.google.oacurl.util.OAuthUtil;
 import com.google.oacurl.util.PropertiesProvider;
@@ -89,13 +90,10 @@ public class Login {
     String serviceProviderFileName = options.getServiceProviderFileName();
     if (serviceProviderFileName == null) {
       if (options.isBuzz()) {
+        // Buzz has its own provider because it has a custom authorization URL
         serviceProviderFileName = "BUZZ";
-      } else if (options.isBlogger()) {
-        serviceProviderFileName = "BLOGGER";
-      } else if (options.isWave()) {
-        serviceProviderFileName = "WAVE";
-      } else if (options.isLatitude()) {
-        serviceProviderFileName = "LATITUDE";
+      } else if (options.getVersion() == OAuthVersion.V2) {
+        serviceProviderFileName = "GOOGLE_V2";
       } else {
         serviceProviderFileName = "GOOGLE";
       }
